@@ -4,13 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
-	"os/exec"
-	"path/filepath"
 
 	"github.com/mjmhtjain/vaccine-alert-service/src/logger"
 	"github.com/mjmhtjain/vaccine-alert-service/src/model"
+	"github.com/mjmhtjain/vaccine-alert-service/src/util"
 )
 
 type AppointmentService interface {
@@ -46,7 +44,8 @@ func fetchDistricts(stateId string) (*model.StateDistricts, error) {
 	var data model.StateDistricts
 
 	//fetching predetermined districts
-	fileData, err := readStaticFile("districts.json")
+	fileData, err := util.ReadStaticFile("districts.json")
+
 	if err != nil {
 		logger.ERROR.Printf("Error occured while reading file.. \n %v \n", err)
 		return nil, err
@@ -61,15 +60,28 @@ func fetchDistricts(stateId string) (*model.StateDistricts, error) {
 	return &data, nil
 }
 
+// TODO: make parallel calls for each district
 func requestAppointmentsFromCentres(districts *model.StateDistricts, date string) (*model.Appointments, error) {
 	logger.INFO.Printf("requestAppointmentsFromCentres: date: %v\n", date)
 
 	var appointmentResp *model.Appointments = new(model.Appointments)
 	d := districts.Districts[0]
 	districtId := d.DistrictID
-	url := fmt.Sprintf("https://cdn-api.co-vin.in/api/v2/appointment/sessions/public/calendarByDistrict?district_id=%v&date=%v", districtId, date)
 
-	resp, err := http.Get(url)
+	req, err := http.NewRequest("GET", util.URL_AppointmentSessionForWeek, nil)
+	if err != nil {
+		logger.ERROR.Printf("Invalid Http Request \n %v \n", err)
+
+	}
+
+	q := req.URL.Query()
+	q.Add("district_id", fmt.Sprint(districtId))
+	q.Add("date", date)
+	req.URL.RawQuery = q.Encode()
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+
 	if err != nil {
 		logger.ERROR.Printf("request failed .. \n %v \n", err)
 		return nil, err
@@ -89,26 +101,4 @@ func requestAppointmentsFromCentres(districts *model.StateDistricts, date string
 	}
 
 	return appointmentResp, nil
-}
-
-func readStaticFile(fileName string) ([]byte, error) {
-	logger.INFO.Printf("readStaticFile: fileName: %v \n", fileName)
-
-	out, err := exec.Command("pwd").Output()
-	if err != nil {
-		logger.ERROR.Printf("Could not execute command.. \n %v \n", err)
-		return nil, err
-	}
-
-	basePath := string(out)
-	basePath = basePath[:len(basePath)-1]
-	filename := filepath.Join(basePath, "src", "staticData", fileName)
-
-	fileData, err := ioutil.ReadFile(filename)
-	if err != nil {
-		logger.ERROR.Printf("Error on reading file.. \n %v \n", err)
-		return nil, err
-	}
-
-	return fileData, nil
 }
