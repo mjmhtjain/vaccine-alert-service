@@ -2,15 +2,17 @@ package util
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"os/exec"
 	"path/filepath"
+	"time"
 
 	"github.com/mjmhtjain/vaccine-alert-service/src/logger"
 )
 
 func ReadStaticFile(fileName string) ([]byte, error) {
-	logger.INFO.Printf("readStaticFile: fileName: %v \n", fileName)
+	logger.DEBUG.Printf("readStaticFile: fileName: %v \n", fileName)
 
 	basePath, err := BasePath()
 	if err != nil {
@@ -45,4 +47,11 @@ func BasePath() (string, error) {
 func PrettyPrint(i interface{}) string {
 	s, _ := json.MarshalIndent(i, "", "\t")
 	return string(s)
+}
+
+// TODO: extract date as per region specific UTC time
+func TodaysDate() string {
+	t := time.Now()
+	return fmt.Sprintf("%02d-%02d-%d",
+		t.Day(), t.Month(), t.Year())
 }

@@ -40,3 +40,13 @@ type StateDistrict struct {
 	DistrictID   int    `json:"district_id"`
 	DistrictName string `json:"district_name"`
 }
+
+type States struct {
+	States []State `json:"states"`
+	TTL    int     `json:"ttl"`
+}
+
+type State struct {
+	StateID   int    `json:"state_id"`
+	StateName string `json:"state_name"`
+}

@@ -39,7 +39,7 @@ func (service *AppointmentServiceImpl) FetchVaccineAppointments(stateId string, 
 }
 
 func fetchDistricts(stateId string) (*model.StateDistricts, error) {
-	logger.INFO.Printf("fetchDistricts: stateId: %v \n", stateId)
+	logger.DEBUG.Printf("fetchDistricts: stateId: %v \n", stateId)
 
 	var data model.StateDistricts
 
@@ -62,7 +62,7 @@ func fetchDistricts(stateId string) (*model.StateDistricts, error) {
 
 // TODO: make parallel calls for each district
 func requestAppointmentsFromCentres(districts *model.StateDistricts, date string) (*model.Appointments, error) {
-	logger.INFO.Printf("requestAppointmentsFromCentres: date: %v\n", date)
+	logger.DEBUG.Printf("requestAppointmentsFromCentres: date: %v\n", date)
 
 	var appointmentResp *model.Appointments = new(model.Appointments)
 	d := districts.Districts[0]
