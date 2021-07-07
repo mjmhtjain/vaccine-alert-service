@@ -3,11 +3,10 @@ package cowin
 import (
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 
 	"github.com/mjmhtjain/vaccine-alert-service/src/logger"
 	"github.com/mjmhtjain/vaccine-alert-service/src/model"
+	cowinrepo "github.com/mjmhtjain/vaccine-alert-service/src/repo/cowinRepo"
 	"github.com/mjmhtjain/vaccine-alert-service/src/util"
 )
 
@@ -16,10 +15,13 @@ type AppointmentService interface {
 }
 
 type AppointmentServiceImpl struct {
+	cowin cowinrepo.CowinAPI
 }
 
 func NewAppointmentService() AppointmentService {
-	return &AppointmentServiceImpl{}
+	return &AppointmentServiceImpl{
+		cowin: cowinrepo.NewCowinAPI(),
+	}
 }
 
 func (service *AppointmentServiceImpl) FetchVaccineAppointments(stateId string, date string) (*model.Appointments, error) {
@@ -30,7 +32,7 @@ func (service *AppointmentServiceImpl) FetchVaccineAppointments(stateId string, 
 		return nil, err
 	}
 
-	resp, err := requestAppointmentsFromCentres(districts, date)
+	resp, err := service.requestAppointmentsFromCentres(districts, date)
 	if err != nil {
 		return nil, err
 	}
@@ -61,44 +63,14 @@ func fetchDistricts(stateId string) (*model.StateDistricts, error) {
 }
 
 // TODO: make parallel calls for each district
-func requestAppointmentsFromCentres(districts *model.StateDistricts, date string) (*model.Appointments, error) {
+func (service *AppointmentServiceImpl) requestAppointmentsFromCentres(districts *model.StateDistricts, date string) (*model.Appointments, error) {
 	logger.DEBUG.Printf("requestAppointmentsFromCentres: date: %v\n", date)
+	districtId := fmt.Sprint(districts.Districts[0].DistrictID)
 
-	var appointmentResp *model.Appointments = new(model.Appointments)
-	d := districts.Districts[0]
-	districtId := d.DistrictID
-
-	req, err := http.NewRequest("GET", util.URL_AppointmentSessionForWeek, nil)
+	appointments, err := service.cowin.AppointmentSessionByDistrictAndCalendar(districtId, date)
 	if err != nil {
-		logger.ERROR.Printf("Invalid Http Request \n %v \n", err)
-
-	}
-
-	q := req.URL.Query()
-	q.Add("district_id", fmt.Sprint(districtId))
-	q.Add("date", date)
-	req.URL.RawQuery = q.Encode()
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-
-	if err != nil {
-		logger.ERROR.Printf("request failed .. \n %v \n", err)
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		logger.ERROR.Printf("body unreadable .. \n %v \n", err)
 		return nil, err
 	}
 
-	err = json.Unmarshal(body, appointmentResp)
-	if err != nil {
-		logger.ERROR.Printf("unmarshalling error .. \n %v \n", err)
-		return nil, err
-	}
-
-	return appointmentResp, nil
+	return appointments, nil
 }
