@@ -15,13 +15,15 @@ import (
 func TestCowinService(t *testing.T) {
 	appointmentService := NewAppointmentServiceWithMockedCowinAPICall()
 
-	t.Run("", func(t *testing.T) {
+	t.Run("given valid arguments, cowin should return appointments", func(t *testing.T) {
 		appointments, err := appointmentService.FetchVaccineAppointments("9", "2019-04-01")
 		if err != nil {
-			t.Errorf("Something went wrong: %s", err)
+			t.Errorf("Error in fetching appointments: %s", err)
 		}
 
-		util.PrettyPrint(appointments)
+		if len(appointments.Centers) < 1 {
+			t.Error("expected appointments to be populated")
+		}
 	})
 }
 
@@ -59,7 +61,7 @@ type MockCowinAPIImpl struct {
 }
 
 func (mock *MockCowinAPIImpl) AppointmentSessionByDistrictAndCalendar(districtId string, date string) (*model.Appointments, error) {
-	var appointmentData *model.Appointments
+	var appointmentData *model.Appointments = new(model.Appointments)
 	path, err := filepath.Abs("./mock/appointmentSessionMock.json")
 	if err != nil {
 		logger.ERROR.Printf("Invalid filepath.. \n %v \n", err)
@@ -71,6 +73,10 @@ func (mock *MockCowinAPIImpl) AppointmentSessionByDistrictAndCalendar(districtId
 		return nil, err
 	}
 
-	json.Unmarshal(data, appointmentData)
+	err = json.Unmarshal(data, appointmentData)
+	if err != nil {
+		return nil, err
+	}
+
 	return appointmentData, nil
 }
