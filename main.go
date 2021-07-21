@@ -1,6 +1,7 @@
 package main
 
 import (
+	"embed"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -11,6 +12,13 @@ import (
 	"github.com/mjmhtjain/vaccine-alert-service/src/model"
 	"github.com/mjmhtjain/vaccine-alert-service/src/util"
 )
+
+//go:embed staticData/*
+var embededFiles embed.FS
+
+func init() {
+	util.EmbededFiles = embededFiles
+}
 
 func main() {
 	appointmentService := cowin.NewAppointmentService()
@@ -40,7 +48,7 @@ func fetchStateId(stateName string) string {
 	var data model.States
 	fileData, err := util.ReadStaticFile("states.json")
 	if err != nil {
-		logger.ERROR.Panicf("Error reading file: \n %v \n", stateName)
+		logger.ERROR.Panicf("Error occured in fetching data")
 	}
 
 	err = json.Unmarshal(fileData, &data)
