@@ -17,12 +17,12 @@ func TestCowinService(t *testing.T) {
 
 	t.Run("cowinRepo returns appointments", func(t *testing.T) {
 		appointmentService := NewAppointmentServiceWithMockedCowinAPICall()
-		appointments, err := appointmentService.FetchVaccineAppointments("Delhi", "2019-04-01")
+		districtVaccineSlots, err := appointmentService.FetchVaccineAppointments("Delhi", "2019-04-01")
 		if err != nil {
 			t.Errorf("Error in fetching appointments: %s", err)
 		}
 
-		if len(appointments.Centers) < 1 {
+		if len(districtVaccineSlots) < 1 {
 			t.Error("expected appointments to be populated")
 		}
 	})
@@ -61,13 +61,17 @@ func (mock *MockStaticFileServiceImpl) Read(name string) ([]byte, error) {
 						{
 							"district_id": 141,
 							"district_name": "Central Delhi"
+						},
+						{
+							"district_id": 142,
+							"district_name": "test_district"
 						}
 					],
 					"ttl": 24
 				}`), nil
 
 	default:
-		return nil, fmt.Errorf("invalid, input")
+		return nil, fmt.Errorf("invalid input")
 	}
 }
 

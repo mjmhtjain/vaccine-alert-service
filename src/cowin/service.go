@@ -12,7 +12,7 @@ import (
 )
 
 type AppointmentService interface {
-	FetchVaccineAppointments(stateId string, date string) (*model.Appointments, error)
+	FetchVaccineAppointments(stateId string, date string) ([]model.Appointments, error)
 }
 
 type AppointmentServiceImpl struct {
@@ -27,7 +27,7 @@ func NewAppointmentService() AppointmentService {
 	}
 }
 
-func (service *AppointmentServiceImpl) FetchVaccineAppointments(stateName string, date string) (*model.Appointments, error) {
+func (service *AppointmentServiceImpl) FetchVaccineAppointments(stateName string, date string) ([]model.Appointments, error) {
 	logger.INFO.Printf("FetchVaccineAppointments stateId: %v date: %v \n", stateName, date)
 
 	stateId, err := service.fetchStateId(stateName)
@@ -93,14 +93,20 @@ func (service *AppointmentServiceImpl) fetchDistricts(stateId string) (*model.St
 }
 
 // TODO: make parallel calls for each district
-func (service *AppointmentServiceImpl) requestAppointmentsFromCentres(districts *model.StateDistricts, date string) (*model.Appointments, error) {
+func (service *AppointmentServiceImpl) requestAppointmentsFromCentres(districts *model.StateDistricts, date string) ([]model.Appointments, error) {
 	logger.DEBUG.Printf("requestAppointmentsFromCentres: date: %v\n", date)
-	districtId := fmt.Sprint(districts.Districts[0].DistrictID)
 
-	appointments, err := service.cowin.AppointmentSessionByDistrictAndCalendar(districtId, date)
-	if err != nil {
-		return nil, err
+	var appoitments []model.Appointments
+
+	for _, d := range districts.Districts {
+		districtId := fmt.Sprint(d.DistrictID)
+		app, err := service.cowin.AppointmentSessionByDistrictAndCalendar(districtId, date)
+		if err != nil {
+			return nil, err
+		}
+
+		appoitments = append(appoitments, *app)
 	}
 
-	return appointments, nil
+	return appoitments, nil
 }
