@@ -3,11 +3,12 @@ package cowin
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/mjmhtjain/vaccine-alert-service/src/logger"
 	"github.com/mjmhtjain/vaccine-alert-service/src/model"
 	cowinrepo "github.com/mjmhtjain/vaccine-alert-service/src/repo/cowinRepo"
-	"github.com/mjmhtjain/vaccine-alert-service/src/util"
+	staticfile "github.com/mjmhtjain/vaccine-alert-service/src/staticFile"
 )
 
 type AppointmentService interface {
@@ -15,19 +16,25 @@ type AppointmentService interface {
 }
 
 type AppointmentServiceImpl struct {
-	cowin cowinrepo.CowinAPI
+	cowin    cowinrepo.CowinAPI
+	staticFS staticfile.FileService
 }
 
 func NewAppointmentService() AppointmentService {
 	return &AppointmentServiceImpl{
-		cowin: cowinrepo.NewCowinAPI(),
+		cowin:    cowinrepo.NewCowinAPI(),
+		staticFS: staticfile.NewFileService(),
 	}
 }
 
-func (service *AppointmentServiceImpl) FetchVaccineAppointments(stateId string, date string) (*model.Appointments, error) {
-	logger.INFO.Printf("FetchVaccineAppointments stateId: %v date: %v \n", stateId, date)
+func (service *AppointmentServiceImpl) FetchVaccineAppointments(stateName string, date string) (*model.Appointments, error) {
+	logger.INFO.Printf("FetchVaccineAppointments stateId: %v date: %v \n", stateName, date)
 
-	districts, err := fetchDistricts(stateId)
+	stateId, err := service.fetchStateId(stateName)
+	if err != nil {
+		return nil, err
+	}
+	districts, err := service.fetchDistricts(stateId)
 	if err != nil {
 		return nil, err
 	}
@@ -40,14 +47,37 @@ func (service *AppointmentServiceImpl) FetchVaccineAppointments(stateId string, 
 	return resp, nil
 }
 
-func fetchDistricts(stateId string) (*model.StateDistricts, error) {
+func (service *AppointmentServiceImpl) fetchStateId(stateName string) (string, error) {
+	var data model.States
+	fileData, err := service.staticFS.Read("states.json")
+	if err != nil {
+		return "", err
+	}
+
+	err = json.Unmarshal(fileData, &data)
+	if err != nil {
+		return "", fmt.Errorf("unmarshalling error: %s", err)
+	}
+
+	stateMap := make(map[string]string)
+	for _, e := range data.States {
+
+		key := strings.ToLower(e.StateName)
+		val := fmt.Sprint(e.StateID)
+
+		stateMap[key] = val
+	}
+
+	return stateMap[strings.ToLower(stateName)], nil
+}
+
+func (service *AppointmentServiceImpl) fetchDistricts(stateId string) (*model.StateDistricts, error) {
 	logger.DEBUG.Printf("fetchDistricts: stateId: %v \n", stateId)
 
 	var data model.StateDistricts
 
 	//fetching predetermined districts
-	fileData, err := util.ReadStaticFile("districts.json")
-
+	fileData, err := service.staticFS.Read("districts.json")
 	if err != nil {
 		logger.ERROR.Printf("Error occured while reading file.. \n %v \n", err)
 		return nil, err

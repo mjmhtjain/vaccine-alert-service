@@ -1,30 +1,14 @@
 package util
 
 import (
-	"embed"
 	"encoding/json"
 	"fmt"
-	"io/fs"
 	"io/ioutil"
 	"os/exec"
 	"time"
 
 	"github.com/mjmhtjain/vaccine-alert-service/src/logger"
 )
-
-var EmbededFiles embed.FS
-
-func ReadStaticFile(fileName string) ([]byte, error) {
-	logger.DEBUG.Printf("readStaticFile: fileName: %v \n", fileName)
-
-	fsys, _ := fs.Sub(EmbededFiles, "staticData")
-	fileData, err := fs.ReadFile(fsys, fileName)
-	if err != nil {
-		return nil, fmt.Errorf("file %s not found", fileName)
-	}
-
-	return fileData, nil
-}
 
 func Readfile(path string) ([]byte, error) {
 	logger.DEBUG.Printf("Readfile: path: %v \n", path)
