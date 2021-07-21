@@ -2,6 +2,7 @@ package cowin
 
 import (
 	"encoding/json"
+	"fmt"
 	"path/filepath"
 	"testing"
 
@@ -13,10 +14,10 @@ import (
 )
 
 func TestCowinService(t *testing.T) {
-	appointmentService := NewAppointmentServiceWithMockedCowinAPICall()
 
-	t.Run("given valid arguments, cowin should return appointments", func(t *testing.T) {
-		appointments, err := appointmentService.FetchVaccineAppointments("9", "2019-04-01")
+	t.Run("cowinRepo returns appointments", func(t *testing.T) {
+		appointmentService := NewAppointmentServiceWithMockedCowinAPICall()
+		appointments, err := appointmentService.FetchVaccineAppointments("Delhi", "2019-04-01")
 		if err != nil {
 			t.Errorf("Error in fetching appointments: %s", err)
 		}
@@ -42,15 +43,32 @@ type MockStaticFileServiceImpl struct {
 }
 
 func (mock *MockStaticFileServiceImpl) Read(name string) ([]byte, error) {
-	return []byte(`{
-		"districts": [
-			{
-				"district_id": 141,
-				"district_name": "Central Delhi"
-			}
-		],
-		"ttl": 24
-	}`), nil
+	switch name {
+	case "states.json":
+		return []byte(`{
+			"states": [
+				{
+					"state_id": 9,
+					"state_name": "Delhi"
+				}
+			],
+			"ttl": 24
+		}`), nil
+
+	case "districts.json":
+		return []byte(`{
+					"districts": [
+						{
+							"district_id": 141,
+							"district_name": "Central Delhi"
+						}
+					],
+					"ttl": 24
+				}`), nil
+
+	default:
+		return nil, fmt.Errorf("invalid, input")
+	}
 }
 
 func NewMockCowinAPI() cowinrepo.CowinAPI {
