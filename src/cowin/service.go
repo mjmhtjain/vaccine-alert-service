@@ -97,6 +97,7 @@ func (service *AppointmentServiceImpl) requestAppointmentsFromCentres(districts 
 
 	var appoitments []model.Appointments
 	resChan := make(chan model.CowinAppointmentResponse)
+	defer close(resChan)
 
 	districtCount := len(districts.Districts)
 
