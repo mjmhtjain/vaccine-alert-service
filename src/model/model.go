@@ -50,3 +50,8 @@ type State struct {
 	StateID   int    `json:"state_id"`
 	StateName string `json:"state_name"`
 }
+
+type CowinAppointmentResponse struct {
+	AppointmentData Appointments
+	Err             error
+}

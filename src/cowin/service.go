@@ -92,20 +92,35 @@ func (service *AppointmentServiceImpl) fetchDistricts(stateId string) (*model.St
 	return &data, nil
 }
 
-// TODO: make parallel calls for each district
 func (service *AppointmentServiceImpl) requestAppointmentsFromCentres(districts *model.StateDistricts, date string) ([]model.Appointments, error) {
 	logger.DEBUG.Printf("requestAppointmentsFromCentres: date: %v\n", date)
 
 	var appoitments []model.Appointments
+	resChan := make(chan model.CowinAppointmentResponse)
+
+	districtCount := len(districts.Districts)
 
 	for _, d := range districts.Districts {
-		districtId := fmt.Sprint(d.DistrictID)
-		app, err := service.cowin.AppointmentSessionByDistrictAndCalendar(districtId, date)
-		if err != nil {
-			return nil, err
-		}
+		go func(districtId string) {
+			app, err := service.cowin.AppointmentSessionByDistrictAndCalendar(districtId, date)
+			cowinRes := model.CowinAppointmentResponse{
+				AppointmentData: *app,
+				Err:             err,
+			}
 
-		appoitments = append(appoitments, *app)
+			resChan <- cowinRes
+		}(fmt.Sprint(d.DistrictID))
+	}
+
+	// TODO: need to think about timeouts and bounded parallelism
+	for i := 0; i < districtCount; i++ {
+		res := <-resChan
+
+		if res.Err != nil {
+			logger.ERROR.Printf("%v\n", res.Err)
+		} else {
+			appoitments = append(appoitments, res.AppointmentData)
+		}
 	}
 
 	return appoitments, nil
