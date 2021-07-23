@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
+	"sync"
 	"testing"
 
 	"github.com/mjmhtjain/vaccine-alert-service/src/logger"
@@ -13,10 +14,12 @@ import (
 	"github.com/mjmhtjain/vaccine-alert-service/src/util"
 )
 
+var mockCowinApiImpl *MockCowinAPIImpl
+
 func TestCowinService(t *testing.T) {
 
 	t.Run("cowinRepo returns appointments", func(t *testing.T) {
-		appointmentService := NewAppointmentServiceWithMockedCowinAPICall()
+		appointmentService := NewMockAppointmentService()
 		districtVaccineSlots, err := appointmentService.FetchVaccineAppointments("Delhi", "2019-04-01")
 		if err != nil {
 			t.Errorf("Error in fetching appointments: %s", err)
@@ -25,10 +28,20 @@ func TestCowinService(t *testing.T) {
 		if len(districtVaccineSlots) < 1 {
 			t.Error("expected appointments to be populated")
 		}
+
+		for _, vs := range districtVaccineSlots {
+			if len(vs.Centers) <= 0 {
+				t.Error("expected atleast one appointment")
+			}
+		}
+
+		if mockCowinApiImpl.callCount != 3 {
+			t.Errorf("expected call count: %v, actual call count: %v", 2, mockCowinApiImpl.callCount)
+		}
 	})
 }
 
-func NewAppointmentServiceWithMockedCowinAPICall() AppointmentService {
+func NewMockAppointmentService() AppointmentService {
 	return &AppointmentServiceImpl{
 		cowin:    NewMockCowinAPI(),
 		staticFS: NewMockStaticFileService(),
@@ -65,6 +78,10 @@ func (mock *MockStaticFileServiceImpl) Read(name string) ([]byte, error) {
 						{
 							"district_id": 142,
 							"district_name": "test_district"
+						},
+						{
+							"district_id": 143,
+							"district_name": "test_district"
 						}
 					],
 					"ttl": 24
@@ -76,13 +93,22 @@ func (mock *MockStaticFileServiceImpl) Read(name string) ([]byte, error) {
 }
 
 func NewMockCowinAPI() cowinrepo.CowinAPI {
-	return &MockCowinAPIImpl{}
+	mockCowinApiImpl = &MockCowinAPIImpl{
+		callCount: 0,
+		mutex:     &sync.Mutex{},
+	}
+
+	return mockCowinApiImpl
 }
 
 type MockCowinAPIImpl struct {
+	callCount int
+	mutex     *sync.Mutex
 }
 
 func (mock *MockCowinAPIImpl) AppointmentSessionByDistrictAndCalendar(districtId string, date string) (*model.Appointments, error) {
+	mock.AddCallCount()
+
 	var appointmentData *model.Appointments = new(model.Appointments)
 	path, err := filepath.Abs("./mock/appointmentSessionMock.json")
 	if err != nil {
@@ -101,4 +127,10 @@ func (mock *MockCowinAPIImpl) AppointmentSessionByDistrictAndCalendar(districtId
 	}
 
 	return appointmentData, nil
+}
+
+func (spy *MockCowinAPIImpl) AddCallCount() {
+	spy.mutex.Lock()
+	spy.callCount++
+	spy.mutex.Unlock()
 }
