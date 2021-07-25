@@ -112,12 +112,12 @@ func (appService *AppointmentServiceImpl) requestAppointmentsFromCentres(distric
 	// send all the data
 	go func() {
 		for _, d := range districts.Districts {
-			districtChan <- fmt.Sprint(d)
+			districtChan <- fmt.Sprint(d.DistrictID)
 		}
 	}()
 
 	// collect data
-	// TODO: need to think about timeouts and bounded parallelism
+	// TODO: need to think about timeouts
 	for i := 0; i < districtCount; i++ {
 		res := <-resChan
 

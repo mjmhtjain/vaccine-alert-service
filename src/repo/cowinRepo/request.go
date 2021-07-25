@@ -26,7 +26,7 @@ func NewCowinAPI() CowinAPI {
 }
 
 func (cowin *CowinAPIImpl) AppointmentSessionByDistrictAndCalendar(districtId string, date string) (*model.Appointments, error) {
-	logger.INFO.Printf("requestAppointmentsFromCentres: date: %v\n", date)
+	logger.DEBUG.Printf("requestAppointmentsFromCentres: districtId: %v date: %v\n", districtId, date)
 	var appointmentResp *model.Appointments = new(model.Appointments)
 
 	req, err := http.NewRequest("GET", util.URL_AppointmentSessionForWeek, nil)
