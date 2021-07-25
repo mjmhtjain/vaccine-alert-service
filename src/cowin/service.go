@@ -92,7 +92,7 @@ func (service *AppointmentServiceImpl) fetchDistricts(stateId string) (*model.St
 	return &data, nil
 }
 
-func (service *AppointmentServiceImpl) requestAppointmentsFromCentres(districts *model.StateDistricts, date string) ([]model.Appointments, error) {
+func (appService *AppointmentServiceImpl) requestAppointmentsFromCentres(districts *model.StateDistricts, date string) ([]model.Appointments, error) {
 	logger.DEBUG.Printf("requestAppointmentsFromCentres: date: %v\n", date)
 
 	var appoitments []model.Appointments
@@ -100,19 +100,23 @@ func (service *AppointmentServiceImpl) requestAppointmentsFromCentres(districts 
 	defer close(resChan)
 
 	districtCount := len(districts.Districts)
+	workerCount := 5
+	districtChan := make(chan string)
+	defer close(districtChan)
 
-	for _, d := range districts.Districts {
-		go func(districtId string) {
-			app, err := service.cowin.AppointmentSessionByDistrictAndCalendar(districtId, date)
-			cowinRes := model.CowinAppointmentResponse{
-				AppointmentData: *app,
-				Err:             err,
-			}
-
-			resChan <- cowinRes
-		}(fmt.Sprint(d.DistrictID))
+	// start workers
+	for i := 0; i < workerCount; i++ {
+		go appService.requestWorker(date, resChan, districtChan)
 	}
 
+	// send all the data
+	go func() {
+		for _, d := range districts.Districts {
+			districtChan <- fmt.Sprint(d)
+		}
+	}()
+
+	// collect data
 	// TODO: need to think about timeouts and bounded parallelism
 	for i := 0; i < districtCount; i++ {
 		res := <-resChan
@@ -125,4 +129,22 @@ func (service *AppointmentServiceImpl) requestAppointmentsFromCentres(districts 
 	}
 
 	return appoitments, nil
+}
+
+func (appService *AppointmentServiceImpl) requestWorker(
+	date string,
+	resChan chan model.CowinAppointmentResponse,
+	districtChan chan string,
+) {
+
+	for d := range districtChan {
+		app, err := appService.cowin.AppointmentSessionByDistrictAndCalendar(d, date)
+		cowinRes := model.CowinAppointmentResponse{
+			AppointmentData: *app,
+			Err:             err,
+		}
+
+		resChan <- cowinRes
+	}
+
 }
