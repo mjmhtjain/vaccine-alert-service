@@ -18,6 +18,7 @@ const (
 var embededFiles embed.FS
 
 func init() {
+	log.Println("init embededFiles ...")
 	util.EmbededFiles = embededFiles
 }
 

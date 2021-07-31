@@ -2,8 +2,8 @@ package staticfile
 
 import (
 	"embed"
-	"fmt"
 	"io/fs"
+	"log"
 
 	"github.com/mjmhtjain/vaccine-alert-service/src/logger"
 )
@@ -18,7 +18,8 @@ func (f *fileServiceImpl) Read(name string) ([]byte, error) {
 	fsys, _ := fs.Sub(f.embededFiles, "staticData")
 	fileData, err := fs.ReadFile(fsys, name)
 	if err != nil {
-		return nil, fmt.Errorf("file %s not found", name)
+		log.Printf("file %s not found", name)
+		return nil, err
 	}
 
 	return fileData, nil
