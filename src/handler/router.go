@@ -4,9 +4,10 @@ import "net/http"
 
 func Router() *http.ServeMux {
 	router := http.NewServeMux()
+	appController := NewAppointmentController()
 
-	// router.Handle("/health", http.HandlerFunc(handler.HealthHandler))
-	router.Handle("/appointments/", http.HandlerFunc(AlertHandler))
+	// TODO: router.Handle("/health", http.HandlerFunc(handler.HealthHandler))
+	router.Handle("/appointments/", http.HandlerFunc(appController.AppoitnmentAlertHandler))
 
 	return router
 }
