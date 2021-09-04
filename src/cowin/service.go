@@ -29,17 +29,23 @@ func NewAppointmentService() AppointmentService {
 
 func (service *AppointmentServiceImpl) FetchVaccineAppointments(stateName string, date string) ([]model.Appointments, error) {
 	logger.INFO.Printf("FetchVaccineAppointments stateId: %v date: %v \n", stateName, date)
+	var (
+		stateId   string
+		err       error
+		districts *model.StateDistricts
+		resp      []model.Appointments
+	)
 
-	stateId, err := service.fetchStateId(stateName)
+	stateId, err = service.fetchStateId(stateName)
 	if err != nil {
 		return nil, err
 	}
-	districts, err := service.fetchDistricts(stateId)
+	districts, err = service.fetchDistricts(stateId)
 	if err != nil {
 		return nil, err
 	}
 
-	resp, err := service.requestAppointmentsFromCentres(districts, date)
+	resp, err = service.requestAppointmentsFromCentres(districts, date)
 	if err != nil {
 		return nil, err
 	}
