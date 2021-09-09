@@ -36,9 +36,3 @@ CREATE USER 'root'@'%' IDENTIFIED BY 'password';
 GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' WITH GRANT OPTION;
 FLUSH PRIVILEGES;
 ```
-
-docker run \
---name mysql-instance \
---mount type=bind,src=/Users/mjmhtjain/repo/vaccine-alert/scripts/db/schema.sql,dst=/docker-entrypoint-initdb.d/1.sql \
--e MYSQL_ROOT_PASSWORD=root \
--d mysql/mysql-server:latest

@@ -2,12 +2,15 @@ package cowin
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 
+	customerror "github.com/mjmhtjain/vaccine-alert-service/src/customError"
 	"github.com/mjmhtjain/vaccine-alert-service/src/logger"
 	"github.com/mjmhtjain/vaccine-alert-service/src/model"
 	cowinrepo "github.com/mjmhtjain/vaccine-alert-service/src/repo/cowinRepo"
+	"github.com/mjmhtjain/vaccine-alert-service/src/repo/sql"
 	staticfile "github.com/mjmhtjain/vaccine-alert-service/src/staticFile"
 )
 
@@ -18,6 +21,7 @@ type AppointmentService interface {
 type AppointmentServiceImpl struct {
 	cowin    cowinrepo.CowinAPI
 	staticFS staticfile.FileService
+	sqlRepo  sql.SqlRepo
 }
 
 func NewAppointmentService() AppointmentService {
@@ -49,6 +53,8 @@ func (service *AppointmentServiceImpl) FetchVaccineAppointments(stateName string
 	if err != nil {
 		return nil, err
 	}
+
+	service.filterAppointments(resp)
 
 	return resp, nil
 }
@@ -98,7 +104,10 @@ func (service *AppointmentServiceImpl) fetchDistricts(stateId string) (*model.St
 	return &data, nil
 }
 
-func (appService *AppointmentServiceImpl) requestAppointmentsFromCentres(districts *model.StateDistricts, date string) ([]model.Appointments, error) {
+func (appService *AppointmentServiceImpl) requestAppointmentsFromCentres(
+	districts *model.StateDistricts,
+	date string,
+) ([]model.Appointments, error) {
 	logger.DEBUG.Printf("requestAppointmentsFromCentres: date: %v\n", date)
 
 	var appoitments []model.Appointments
@@ -153,4 +162,58 @@ func (appService *AppointmentServiceImpl) requestWorker(
 		resChan <- cowinRes
 	}
 
+}
+
+func (service *AppointmentServiceImpl) filterAppointments(resp []model.Appointments) []model.AppointmentSession {
+	var (
+		appSessArr = []model.AppointmentSession{}
+	)
+
+	for centerIndex, center := range resp[0].Centers {
+		for _, sess := range center.Sessions {
+
+			if !service.sqlRepo.IsSessionExist(sess) {
+				var (
+					appSess   model.AppointmentSession
+					err       error
+					vaccineId string
+				)
+
+				// generate appointment session obj
+				appSess, err = generateAppointmentSession(sess, resp[0].Centers[centerIndex])
+				if err != nil {
+					panic(err.Error())
+				}
+
+				// upsert centerInfo
+				service.sqlRepo.InsertCenterInfo(resp, centerIndex)
+
+				// upsert vaccineType info
+				vaccineId, err = service.sqlRepo.InsertVaccine(sess)
+				if err != nil {
+					if (errors.Is(err, &customerror.RecordExists{})) {
+						logger.DEBUG.Printf("Record Exists.. \n %v \n", err.Error())
+					} else {
+						panic(err.Error())
+					}
+				}
+
+				// update the center_idfk and vaccine_idfk
+				appSess.VaccineIDKF = vaccineId
+				appSess.CenterIDFK = resp[0].Centers[centerIndex].CenterID
+
+				// insert the new appointment session
+				service.sqlRepo.InsertAppointmentSession(appSess)
+
+				// append the new session in output
+				appSessArr = append(appSessArr, appSess)
+			}
+		}
+	}
+
+	return appSessArr
+}
+
+func generateAppointmentSession(sess model.Session, center model.Center) (model.AppointmentSession, error) {
+	return model.AppointmentSession{}, nil
 }
