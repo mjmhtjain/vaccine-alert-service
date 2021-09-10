@@ -143,6 +143,10 @@ func (appService *AppointmentServiceImpl) requestAppointmentsFromCentres(
 		}
 	}
 
+	if len(appoitments) == 0 {
+		return nil, errors.New("no data found")
+	}
+
 	return appoitments, nil
 }
 
@@ -154,9 +158,11 @@ func (appService *AppointmentServiceImpl) requestWorker(
 
 	for d := range districtChan {
 		app, err := appService.cowin.AppointmentSessionByDistrictAndCalendar(d, date)
-		cowinRes := model.CowinAppointmentResponse{
-			AppointmentData: *app,
-			Err:             err,
+		cowinRes := model.CowinAppointmentResponse{}
+		if err != nil {
+			cowinRes.Err = err
+		} else {
+			cowinRes.AppointmentData = *app
 		}
 
 		resChan <- cowinRes

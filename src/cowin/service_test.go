@@ -10,7 +10,7 @@ import (
 
 func TestCowinService(t *testing.T) {
 
-	t.Run("cowinRepo returns appointments", func(t *testing.T) {
+	t.Run("When cowinRepo returns appointments Then expect appointments", func(t *testing.T) {
 		appointmentService := &AppointmentServiceImpl{
 			cowin:    mock.NewMockCowinAPI("../mock/appointmentSessionMock.json"),
 			staticFS: mock.NewMockStaticFileService(),
@@ -30,6 +30,20 @@ func TestCowinService(t *testing.T) {
 			if len(vs.Centers) <= 0 {
 				t.Error("expected atleast one appointment")
 			}
+		}
+	})
+
+	t.Run("When cowinRepo returns error then expect error", func(t *testing.T) {
+		appointmentService := &AppointmentServiceImpl{
+			cowin:    mock.NewMockCowinAPI(""),
+			staticFS: mock.NewMockStaticFileService(),
+			sqlRepo:  mock.NewMockSqlRepoImpl(true),
+		}
+
+		districtVaccineSlots, err := appointmentService.FetchVaccineAppointments("Delhi", "2019-04-01")
+
+		if districtVaccineSlots != nil && err == nil {
+			t.Errorf("Error was expected")
 		}
 	})
 }
