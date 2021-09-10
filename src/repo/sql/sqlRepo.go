@@ -6,9 +6,9 @@ var sqlRepoInstance SqlRepo
 
 type SqlRepo interface {
 	IsSessionExist(sess model.Session) bool
-	InsertCenterInfo(resp []model.Appointments, centerIndex int)
+	InsertCenterInfo(resp []model.Appointments, centerIndex int) (string, error)
 	InsertVaccine(sess model.Session) (string, error)
-	InsertAppointmentSession(appSess model.AppointmentSession)
+	InsertAppointmentSession(appSess model.AppointmentSession) (string, error)
 }
 
 type SqlRepoImpl struct {
@@ -26,14 +26,14 @@ func (impl *SqlRepoImpl) IsSessionExist(sess model.Session) bool {
 	return false
 }
 
-func (impl *SqlRepoImpl) InsertCenterInfo(resp []model.Appointments, centerIndex int) {
-
+func (impl *SqlRepoImpl) InsertCenterInfo(resp []model.Appointments, centerIndex int) (string, error) {
+	return "", nil
 }
 
 func (impl *SqlRepoImpl) InsertVaccine(sess model.Session) (string, error) {
 	return "", nil
 }
 
-func (impl *SqlRepoImpl) InsertAppointmentSession(appSess model.AppointmentSession) {
-
+func (impl *SqlRepoImpl) InsertAppointmentSession(appSess model.AppointmentSession) (string, error) {
+	return "", nil
 }

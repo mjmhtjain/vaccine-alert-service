@@ -19,14 +19,14 @@ func (impl *MockSqlRepoImpl) IsSessionExist(sess model.Session) bool {
 	return impl.isSessionExistResp
 }
 
-func (impl *MockSqlRepoImpl) InsertCenterInfo(resp []model.Appointments, centerIndex int) {
-
+func (impl *MockSqlRepoImpl) InsertCenterInfo(resp []model.Appointments, centerIndex int) (string, error) {
+	return "", nil
 }
 
 func (impl *MockSqlRepoImpl) InsertVaccine(sess model.Session) (string, error) {
 	return "", nil
 }
 
-func (impl *MockSqlRepoImpl) InsertAppointmentSession(appSess model.AppointmentSession) {
-
+func (impl *MockSqlRepoImpl) InsertAppointmentSession(appSess model.AppointmentSession) (string, error) {
+	return "", nil
 }

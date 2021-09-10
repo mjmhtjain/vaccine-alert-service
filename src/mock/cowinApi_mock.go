@@ -2,8 +2,8 @@ package mock
 
 import (
 	"encoding/json"
+	"errors"
 	"path/filepath"
-	"sync"
 
 	"github.com/mjmhtjain/vaccine-alert-service/src/logger"
 	"github.com/mjmhtjain/vaccine-alert-service/src/model"
@@ -11,25 +11,27 @@ import (
 	"github.com/mjmhtjain/vaccine-alert-service/src/util"
 )
 
-func NewMockCowinAPI() cowinrepo.CowinAPI {
-	mockCowinApiImpl := &MockCowinAPIImpl{
-		callCount: 0,
-		mutex:     &sync.Mutex{},
+func NewMockCowinAPI(responseFilePath string) cowinrepo.CowinAPI {
+	return &CowinAPIMockImpl{
+		mockResponseFilePath: responseFilePath,
 	}
-
-	return mockCowinApiImpl
 }
 
-type MockCowinAPIImpl struct {
-	callCount int
-	mutex     *sync.Mutex
+type CowinAPIMockImpl struct {
+	mockResponseFilePath string
 }
 
-func (mock *MockCowinAPIImpl) AppointmentSessionByDistrictAndCalendar(districtId string, date string) (*model.Appointments, error) {
-	mock.AddCallCount()
+func (mock *CowinAPIMockImpl) AppointmentSessionByDistrictAndCalendar(
+	districtId string, date string,
+) (*model.Appointments, error) {
 
 	var appointmentData *model.Appointments = new(model.Appointments)
-	path, err := filepath.Abs("../mock/appointmentSessionMock.json")
+
+	if mock.mockResponseFilePath == "" {
+		return nil, errors.New("")
+	}
+
+	path, err := filepath.Abs(mock.mockResponseFilePath) //filepath.Abs("../mock/appointmentSessionMock.json")
 	if err != nil {
 		logger.ERROR.Printf("Invalid filepath.. \n %v \n", err)
 		return nil, err
@@ -46,10 +48,4 @@ func (mock *MockCowinAPIImpl) AppointmentSessionByDistrictAndCalendar(districtId
 	}
 
 	return appointmentData, nil
-}
-
-func (spy *MockCowinAPIImpl) AddCallCount() {
-	spy.mutex.Lock()
-	spy.callCount++
-	spy.mutex.Unlock()
 }
