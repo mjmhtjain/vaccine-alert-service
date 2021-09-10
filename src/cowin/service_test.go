@@ -14,7 +14,7 @@ func TestCowinService(t *testing.T) {
 		appointmentService := &AppointmentServiceImpl{
 			cowin:    mock.NewMockCowinAPI("../mock/appointmentSessionMock.json"),
 			staticFS: mock.NewMockStaticFileService(),
-			sqlRepo:  mock.NewMockSqlRepoImpl(false),
+			sqlRepo:  mock.NewMockSqlRepoImpl_SetResponse(false),
 		}
 
 		districtVaccineSlots, err := appointmentService.FetchVaccineAppointments("Delhi", "2019-04-01")
@@ -31,7 +31,7 @@ func TestCowinService(t *testing.T) {
 		appointmentService := &AppointmentServiceImpl{
 			cowin:    mock.NewMockCowinAPI(""),
 			staticFS: mock.NewMockStaticFileService(),
-			sqlRepo:  mock.NewMockSqlRepoImpl(true),
+			sqlRepo:  mock.NewMockSqlRepoImpl_SetResponse(true),
 		}
 
 		districtVaccineSlots, err := appointmentService.FetchVaccineAppointments("Delhi", "2019-04-01")
@@ -41,17 +41,35 @@ func TestCowinService(t *testing.T) {
 		}
 	})
 
-	t.Run("When cowinRepo returns appointments existing in db .. Then expect unique appointments to be returned", func(t *testing.T) {
+	t.Run("When cowinRepo returns all stale appointments .. Then expect 0 appointments returned", func(t *testing.T) {
 		appointmentService := &AppointmentServiceImpl{
-			cowin:    mock.NewMockCowinAPI(""),
+			cowin:    mock.NewMockCowinAPI("../mock/appointmentSessionMock.json"),
 			staticFS: mock.NewMockStaticFileService(),
-			sqlRepo:  mock.NewMockSqlRepoImpl(true),
+			sqlRepo:  mock.NewMockSqlRepoImpl_SetResponse(true),
 		}
 
-		districtVaccineSlots, err := appointmentService.FetchVaccineAppointments("Delhi", "2019-04-01")
+		districtVaccineSlots, _ := appointmentService.FetchVaccineAppointments("Delhi", "2019-04-01")
 
-		if districtVaccineSlots != nil && err == nil {
-			t.Errorf("Error was expected")
+		if len(districtVaccineSlots) > 0 {
+			t.Errorf("All stale appointments are expected to be filtered")
+		}
+	})
+
+	t.Run("When cowinRepo returns some stale appointments .. Then expect filtered appointments returned", func(t *testing.T) {
+		// using repeated sessionId to mock stale sessions
+		appointmentService := &AppointmentServiceImpl{
+			cowin:    mock.NewMockCowinAPI("../mock/appointmentSessionMock.json"),
+			staticFS: mock.NewMockStaticFileService(),
+			sqlRepo:  mock.NewMockSqlRepoImpl_RecordSessions(),
+		}
+		expectedAppointments := 1
+
+		districtVaccineSlots, _ := appointmentService.FetchVaccineAppointments("Delhi", "2019-04-01")
+
+		if len(districtVaccineSlots) != expectedAppointments {
+			t.Errorf("expected number of records %v, actual number of records %v",
+				expectedAppointments,
+				len(districtVaccineSlots))
 		}
 	})
 }
