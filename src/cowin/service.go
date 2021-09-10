@@ -15,7 +15,7 @@ import (
 )
 
 type AppointmentService interface {
-	FetchVaccineAppointments(stateId string, date string) ([]model.Appointments, error)
+	FetchVaccineAppointments(stateId string, date string) ([]model.AppointmentSession, error)
 }
 
 type AppointmentServiceImpl struct {
@@ -31,13 +31,13 @@ func NewAppointmentService() AppointmentService {
 	}
 }
 
-func (service *AppointmentServiceImpl) FetchVaccineAppointments(stateName string, date string) ([]model.Appointments, error) {
+func (service *AppointmentServiceImpl) FetchVaccineAppointments(stateName string, date string) ([]model.AppointmentSession, error) {
 	logger.INFO.Printf("FetchVaccineAppointments stateId: %v date: %v \n", stateName, date)
 	var (
-		stateId   string
-		err       error
-		districts *model.StateDistricts
-		resp      []model.Appointments
+		stateId              string
+		err                  error
+		districts            *model.StateDistricts
+		districtAppointments []model.Appointments
 	)
 
 	stateId, err = service.fetchStateId(stateName)
@@ -49,14 +49,14 @@ func (service *AppointmentServiceImpl) FetchVaccineAppointments(stateName string
 		return nil, err
 	}
 
-	resp, err = service.requestAppointmentsFromCentres(districts, date)
+	districtAppointments, err = service.requestAppointmentsFromCentres(districts, date)
 	if err != nil {
 		return nil, err
 	}
 
-	service.filterAppointments(resp)
+	filteredAppointments := service.filterAppointments(districtAppointments)
 
-	return resp, nil
+	return filteredAppointments, nil
 }
 
 func (service *AppointmentServiceImpl) fetchStateId(stateName string) (string, error) {
@@ -170,49 +170,51 @@ func (appService *AppointmentServiceImpl) requestWorker(
 
 }
 
-func (service *AppointmentServiceImpl) filterAppointments(resp []model.Appointments) []model.AppointmentSession {
+func (service *AppointmentServiceImpl) filterAppointments(districtAppointments []model.Appointments) []model.AppointmentSession {
 	var (
 		appSessArr = []model.AppointmentSession{}
 	)
 
-	for centerIndex, center := range resp[0].Centers {
-		for _, sess := range center.Sessions {
+	for _, distApp := range districtAppointments {
+		for centerIndex, center := range distApp.Centers {
+			for _, sess := range center.Sessions {
 
-			if !service.sqlRepo.IsSessionExist(sess) {
-				var (
-					appSess   model.AppointmentSession
-					err       error
-					vaccineId string
-				)
+				if !service.sqlRepo.IsSessionExist(sess) {
+					var (
+						appSess   model.AppointmentSession
+						err       error
+						vaccineId string
+					)
 
-				// generate appointment session obj
-				appSess, err = generateAppointmentSession(sess, resp[0].Centers[centerIndex])
-				if err != nil {
-					panic(err.Error())
-				}
-
-				// upsert centerInfo
-				service.sqlRepo.InsertCenterInfo(resp, centerIndex)
-
-				// upsert vaccineType info
-				vaccineId, err = service.sqlRepo.InsertVaccine(sess)
-				if err != nil {
-					if (errors.Is(err, &customerror.RecordExists{})) {
-						logger.DEBUG.Printf("Record Exists.. \n %v \n", err.Error())
-					} else {
+					// generate appointment session obj
+					appSess, err = generateAppointmentSession(sess, districtAppointments[0].Centers[centerIndex])
+					if err != nil {
 						panic(err.Error())
 					}
+
+					// upsert centerInfo
+					service.sqlRepo.InsertCenterInfo(districtAppointments, centerIndex)
+
+					// upsert vaccineType info
+					vaccineId, err = service.sqlRepo.InsertVaccine(sess)
+					if err != nil {
+						if (errors.Is(err, &customerror.RecordExists{})) {
+							logger.DEBUG.Printf("Record Exists.. \n %v \n", err.Error())
+						} else {
+							panic(err.Error())
+						}
+					}
+
+					// update the center_idfk and vaccine_idfk
+					appSess.VaccineIDKF = vaccineId
+					appSess.CenterIDFK = center.CenterID
+
+					// insert the new appointment session
+					service.sqlRepo.InsertAppointmentSession(appSess)
+
+					// append the new session in output
+					appSessArr = append(appSessArr, appSess)
 				}
-
-				// update the center_idfk and vaccine_idfk
-				appSess.VaccineIDKF = vaccineId
-				appSess.CenterIDFK = resp[0].Centers[centerIndex].CenterID
-
-				// insert the new appointment session
-				service.sqlRepo.InsertAppointmentSession(appSess)
-
-				// append the new session in output
-				appSessArr = append(appSessArr, appSess)
 			}
 		}
 	}
