@@ -16,14 +16,19 @@ func TestCowinService(t *testing.T) {
 			staticFS: mock.NewMockStaticFileService(),
 			sqlRepo:  mock.NewMockSqlRepoImpl_SetResponse(false),
 		}
+		expectedAppointments := 3
 
 		districtVaccineSlots, err := appointmentService.FetchVaccineAppointments("Delhi", "2019-04-01")
 		if err != nil {
-			t.Errorf("Error in fetching appointments: %s", err)
+			t.Errorf("unexpected error in fetching appointments: %s", err)
 		}
 
-		if len(districtVaccineSlots) < 3 {
-			t.Error("expected 3 appointment sessions")
+		if len(districtVaccineSlots) != expectedAppointments {
+			t.Errorf(
+				"expected number of records %v, actual number of records %v",
+				expectedAppointments,
+				len(districtVaccineSlots),
+			)
 		}
 	})
 
