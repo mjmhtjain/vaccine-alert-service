@@ -67,9 +67,11 @@ func TestCowinService(t *testing.T) {
 		districtVaccineSlots, _ := appointmentService.FetchVaccineAppointments("Delhi", "2019-04-01")
 
 		if len(districtVaccineSlots) != expectedAppointments {
-			t.Errorf("expected number of records %v, actual number of records %v",
+			t.Errorf(
+				"expected number of records %v, actual number of records %v",
 				expectedAppointments,
-				len(districtVaccineSlots))
+				len(districtVaccineSlots),
+			)
 		}
 	})
 }
