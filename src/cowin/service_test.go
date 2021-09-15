@@ -10,8 +10,6 @@ import (
 	"github.com/mjmhtjain/vaccine-alert-service/src/util"
 )
 
-// var mockCowinApiImpl *MockCowinAPIImpl
-
 func TestAppointmentService_SqlRepo(t *testing.T) {
 	appointments := model.Appointments{}
 	ReadJsonFile("../mock/session_1.json", &appointments)
