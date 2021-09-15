@@ -221,19 +221,13 @@ func TestAppointmentService_CowinService(t *testing.T) {
 
 func ReadJsonFile(relativeFilePath string, model interface{}) {
 	path, err := filepath.Abs(relativeFilePath)
-	ErrorPanic(err)
+	util.ErrorPanic(err)
 
 	data, err := util.Readfile(path)
-	ErrorPanic(err)
+	util.ErrorPanic(err)
 
 	err = json.Unmarshal(data, model)
-	ErrorPanic(err)
-}
-
-func ErrorPanic(err error) {
-	if err != nil {
-		panic(err)
-	}
+	util.ErrorPanic(err)
 }
 
 func PanicCheck(t *testing.T) {

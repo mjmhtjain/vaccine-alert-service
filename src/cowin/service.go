@@ -12,6 +12,7 @@ import (
 	cowinrepo "github.com/mjmhtjain/vaccine-alert-service/src/repo/cowinRepo"
 	"github.com/mjmhtjain/vaccine-alert-service/src/repo/sql"
 	staticfile "github.com/mjmhtjain/vaccine-alert-service/src/staticFile"
+	"github.com/mjmhtjain/vaccine-alert-service/src/util"
 )
 
 type AppointmentService interface {
@@ -41,20 +42,18 @@ func (service *AppointmentServiceImpl) FetchVaccineAppointments(stateName string
 		districtAppointments []model.Appointments
 	)
 
+	// fetch state and districtIds for the state
 	stateId, err = service.fetchStateId(stateName)
-	if err != nil {
-		return nil, err
-	}
+	util.ErrorPanic(err)
+
 	districts, err = service.fetchDistricts(stateId)
-	if err != nil {
-		return nil, err
-	}
+	util.ErrorPanic(err)
 
+	// fetch all appointments for a district
 	districtAppointments, err = service.requestAppointmentsFromCentres(districts, date)
-	if err != nil {
-		panic(err)
-	}
+	util.ErrorPanic(err)
 
+	// filter out stale appointments
 	filteredAppointments := service.filterAppointments(districtAppointments)
 
 	return filteredAppointments, nil

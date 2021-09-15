@@ -35,6 +35,12 @@ func BasePath() (string, error) {
 	return basePath, nil
 }
 
+func ErrorPanic(err error) {
+	if err != nil {
+		panic(err)
+	}
+}
+
 func PrettyPrint(i interface{}) string {
 	s, _ := json.MarshalIndent(i, "", "\t")
 	return string(s)
