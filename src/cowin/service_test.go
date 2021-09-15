@@ -1,37 +1,34 @@
 package cowin
 
 import (
+	"encoding/json"
+	"path/filepath"
 	"testing"
 
 	"github.com/mjmhtjain/vaccine-alert-service/src/mock"
+	"github.com/mjmhtjain/vaccine-alert-service/src/model"
+	"github.com/mjmhtjain/vaccine-alert-service/src/util"
 )
 
 // var mockCowinApiImpl *MockCowinAPIImpl
 
-func TestCowinService(t *testing.T) {
+func TestAppointmentService_SqlRepo(t *testing.T) {
+	appointments := model.Appointments{}
+	ReadJsonFile("../mock/session_1.json", &appointments)
 
-	t.Run("When cowinRepo returns appointments .. Then expect appointments", func(t *testing.T) {
-		// appointments := model.Appointments{}
-		// path, err := filepath.Abs("../mock/appointmentSessionMock.json")
-		// ErrorPanic(err)
+	mockCowin := mock.NewMockCowinAPI(appointments)
+	mockStaticFS := mock.NewMockStaticFileService()
 
-		// data, err := util.Readfile(path)
-		// ErrorPanic(err)
-
-		// err = json.Unmarshal(data, &appointments)
-		// ErrorPanic(err)
-
+	t.Run("When sqlRepo has no appointments data stored.. Then expect all sessions returned", func(t *testing.T) {
 		mockSqlRepo := mock.NewMockSqlRepoImpl(nil, nil, nil, nil, nil, nil)
 
-		// sqlRepo.InsertAppointmentSession()
-
 		appointmentService := &AppointmentServiceImpl{
-			cowin:    mock.NewMockCowinAPI("../mock/appointmentSessionMock.json"),
-			staticFS: mock.NewMockStaticFileService(),
+			cowin:    mockCowin,
+			staticFS: mockStaticFS,
 			sqlRepo:  mockSqlRepo,
 		}
-		expectedAppointments := 1
 
+		expectedAppointments := 1
 		districtVaccineSlots, err := appointmentService.FetchVaccineAppointments("Delhi", "2019-04-01")
 		if err != nil {
 			t.Errorf("unexpected error in fetching appointments: %s", err)
@@ -46,53 +43,116 @@ func TestCowinService(t *testing.T) {
 		}
 	})
 
-	// t.Run("When cowinRepo returns error then expect error", func(t *testing.T) {
-	// 	appointmentService := &AppointmentServiceImpl{
-	// 		cowin:    mock.NewMockCowinAPI(""),
-	// 		staticFS: mock.NewMockStaticFileService(),
-	// 		sqlRepo:  mock.NewMockSqlRepoImpl_SetResponse(true),
-	// 	}
+	t.Run("When sqlRepo contains data for centers and vaccine but no session data.. Then expect all sessions returned", func(t *testing.T) {
+		mockSqlRepo := mock.NewMockSqlRepoImpl(nil, nil, nil, nil, nil, nil)
 
-	// 	districtVaccineSlots, err := appointmentService.FetchVaccineAppointments("Delhi", "2019-04-01")
+		appointmentService := &AppointmentServiceImpl{
+			cowin:    mockCowin,
+			staticFS: mockStaticFS,
+			sqlRepo:  mockSqlRepo,
+		}
 
-	// 	if districtVaccineSlots != nil && err == nil {
-	// 		t.Errorf("Error was expected")
-	// 	}
-	// })
+		// inserting center and vaccine data
+		s := appointments.Centers[0].Sessions[0]
+		s.SessionID = "123"
+		mockSqlRepo.InsertAppointmentSession(&s, 123, "id")
 
-	// t.Run("When cowinRepo returns all stale appointments .. Then expect 0 appointments returned", func(t *testing.T) {
-	// 	appointmentService := &AppointmentServiceImpl{
-	// 		cowin:    mock.NewMockCowinAPI("../mock/appointmentSessionMock.json"),
-	// 		staticFS: mock.NewMockStaticFileService(),
-	// 		sqlRepo:  mock.NewMockSqlRepoImpl_SetResponse(true),
-	// 	}
+		// asserting
+		expectedAppointments := 1
+		districtVaccineSlots, err := appointmentService.FetchVaccineAppointments("Delhi", "2019-04-01")
+		if err != nil {
+			t.Errorf("unexpected error in fetching appointments: %s", err)
+		}
 
-	// 	districtVaccineSlots, _ := appointmentService.FetchVaccineAppointments("Delhi", "2019-04-01")
+		if len(districtVaccineSlots) != expectedAppointments {
+			t.Errorf(
+				"expected number of records %v, actual number of records %v",
+				expectedAppointments,
+				len(districtVaccineSlots),
+			)
+		}
+	})
 
-	// 	if len(districtVaccineSlots) > 0 {
-	// 		t.Errorf("All stale appointments are expected to be filtered")
-	// 	}
-	// })
+	t.Run("When all stale sessions data is given .. Then expect 0 sessions returned", func(t *testing.T) {
+		mockSqlRepo := mock.NewMockSqlRepoImpl(nil, nil, nil, nil, nil, nil)
 
-	// t.Run("When cowinRepo returns some stale appointments .. Then expect filtered appointments returned", func(t *testing.T) {
-	// 	// using repeated sessionId to mock stale sessions
-	// 	appointmentService := &AppointmentServiceImpl{
-	// 		cowin:    mock.NewMockCowinAPI("../mock/appointmentSessionMock.json"),
-	// 		staticFS: mock.NewMockStaticFileService(),
-	// 		sqlRepo:  mock.NewMockSqlRepoImpl_RecordSessions(),
-	// 	}
-	// 	expectedAppointments := 1
+		appointmentService := &AppointmentServiceImpl{
+			cowin:    mockCowin,
+			staticFS: mockStaticFS,
+			sqlRepo:  mockSqlRepo,
+		}
 
-	// 	districtVaccineSlots, _ := appointmentService.FetchVaccineAppointments("Delhi", "2019-04-01")
+		// inserting the appointments in advance
+		for _, c := range appointments.Centers {
+			for _, s := range c.Sessions {
+				mockSqlRepo.InsertAppointmentSession(&s, 123, "id")
+			}
+		}
 
-	// 	if len(districtVaccineSlots) != expectedAppointments {
-	// 		t.Errorf(
-	// 			"expected number of records %v, actual number of records %v",
-	// 			expectedAppointments,
-	// 			len(districtVaccineSlots),
-	// 		)
-	// 	}
-	// })
+		expectedAppointments := 0
+		districtVaccineSlots, err := appointmentService.FetchVaccineAppointments("Delhi", "2019-04-01")
+		if err != nil {
+			t.Errorf("unexpected error in fetching appointments: %s", err)
+		}
+
+		if len(districtVaccineSlots) != expectedAppointments {
+			t.Errorf(
+				"expected number of records %v, actual number of records %v",
+				expectedAppointments,
+				len(districtVaccineSlots),
+			)
+		}
+	})
+
+	t.Run("When mix of fresh and stale session data is returned .. Then expect fresh sessions data returned", func(t *testing.T) {
+		// adding fresh sessions mockCowin
+		for _, id := range []string{"session_1", "session_2"} {
+			tempSession := appointments.Centers[0].Sessions[0]
+			tempSession.SessionID = id
+
+			appointments.Centers[0].Sessions = append(appointments.Centers[0].Sessions, tempSession)
+		}
+
+		mockCowin := mock.NewMockCowinAPI(appointments)
+		mockSqlRepo := mock.NewMockSqlRepoImpl(nil, nil, nil, nil, nil, nil)
+
+		appointmentService := &AppointmentServiceImpl{
+			cowin:    mockCowin,
+			staticFS: mockStaticFS,
+			sqlRepo:  mockSqlRepo,
+		}
+
+		// inserting stale appointments in sqlRepo
+		tempSession := appointments.Centers[0].Sessions[0]
+		mockSqlRepo.InsertAppointmentSession(&tempSession, 123, "id")
+
+		// asserting
+		expectedAppointments := 2
+		districtVaccineSlots, err := appointmentService.FetchVaccineAppointments("Delhi", "2019-04-01")
+		if err != nil {
+			t.Errorf("unexpected error in fetching appointments: %s", err)
+		}
+
+		if len(districtVaccineSlots) != expectedAppointments {
+			t.Errorf(
+				"expected number of records %v, actual number of records %v",
+				expectedAppointments,
+				len(districtVaccineSlots),
+			)
+		}
+	})
+
+}
+
+func ReadJsonFile(relativeFilePath string, model interface{}) {
+	path, err := filepath.Abs(relativeFilePath)
+	ErrorPanic(err)
+
+	data, err := util.Readfile(path)
+	ErrorPanic(err)
+
+	err = json.Unmarshal(data, model)
+	ErrorPanic(err)
 }
 
 func ErrorPanic(err error) {
