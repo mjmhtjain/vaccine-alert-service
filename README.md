@@ -5,6 +5,7 @@ docker run \
 --name mysql-instance \
 --mount type=bind,src=/Users/mjmhtjain/repo/vaccine-alert/scripts/db/schema.sql,dst=/docker-entrypoint-initdb.d/1.sql \
 -e MYSQL_ROOT_PASSWORD=root \
+-p 3306:3306 \
 -d mysql/mysql-server:latest
 ```
 

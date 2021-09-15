@@ -15,7 +15,7 @@ import (
 )
 
 type AppointmentService interface {
-	FetchVaccineAppointments(stateId string, date string) ([]model.AppointmentSession, error)
+	FetchVaccineAppointments(stateId string, date string) ([]model.AppointmentSessionORM, error)
 }
 
 type AppointmentServiceImpl struct {
@@ -28,10 +28,11 @@ func NewAppointmentService() AppointmentService {
 	return &AppointmentServiceImpl{
 		cowin:    cowinrepo.NewCowinAPI(),
 		staticFS: staticfile.NewFileService(),
+		sqlRepo:  sql.NewSqlRepo(),
 	}
 }
 
-func (service *AppointmentServiceImpl) FetchVaccineAppointments(stateName string, date string) ([]model.AppointmentSession, error) {
+func (service *AppointmentServiceImpl) FetchVaccineAppointments(stateName string, date string) ([]model.AppointmentSessionORM, error) {
 	logger.INFO.Printf("FetchVaccineAppointments stateId: %v date: %v \n", stateName, date)
 	var (
 		stateId              string
@@ -170,50 +171,35 @@ func (appService *AppointmentServiceImpl) requestWorker(
 
 }
 
-func (service *AppointmentServiceImpl) filterAppointments(districtAppointments []model.Appointments) []model.AppointmentSession {
+func (service *AppointmentServiceImpl) filterAppointments(districtAppointments []model.Appointments) []model.AppointmentSessionORM {
 	var (
-		appSessArr = []model.AppointmentSession{}
+		appSessArr       = []model.AppointmentSessionORM{}
+		noRecordExistErr *customerror.NoRecordExists
 	)
 
 	for _, distApp := range districtAppointments {
-		for centerIndex, center := range distApp.Centers {
+		for _, center := range distApp.Centers {
 			for _, sess := range center.Sessions {
 
-				if !service.sqlRepo.IsSessionExist(sess) {
-					var (
-						appSess   model.AppointmentSession
-						err       error
-						vaccineId string
-					)
+				_, err := service.sqlRepo.FindSessionWithSessionId(&sess)
+				if err != nil && errors.As(err, &noRecordExistErr) {
 
-					// generate appointment session obj
-					appSess, err = generateAppointmentSession(sess, districtAppointments[0].Centers[centerIndex])
-					if err != nil {
-						panic(err.Error())
+					// find/insert center info
+					centerOrm, err := service.sqlRepo.FindCenterWithCenterId(center)
+					if err != nil && errors.As(err, &noRecordExistErr) {
+						centerOrm = service.sqlRepo.InsertCenterInfo(center)
 					}
 
-					// upsert centerInfo
-					service.sqlRepo.InsertCenterInfo(districtAppointments, centerIndex)
-
-					// upsert vaccineType info
-					vaccineId, err = service.sqlRepo.InsertVaccine(sess)
-					if err != nil {
-						if (errors.Is(err, &customerror.RecordExists{})) {
-							logger.DEBUG.Printf("Record Exists.. \n %v \n", err.Error())
-						} else {
-							panic(err.Error())
-						}
+					// find/insert vaccine info
+					vaccinOrm, err := service.sqlRepo.FindVaccineByName(sess.Vaccine)
+					if err != nil && errors.As(err, &noRecordExistErr) {
+						vaccinOrm = service.sqlRepo.InsertVaccine(sess.Vaccine)
 					}
 
-					// update the center_idfk and vaccine_idfk
-					appSess.VaccineIDKF = vaccineId
-					appSess.CenterIDFK = center.CenterID
+					// insert session info
+					sessionOrm := service.sqlRepo.InsertAppointmentSession(&sess, centerOrm.Id, vaccinOrm.Id)
 
-					// insert the new appointment session
-					service.sqlRepo.InsertAppointmentSession(appSess)
-
-					// append the new session in output
-					appSessArr = append(appSessArr, appSess)
+					appSessArr = append(appSessArr, *sessionOrm)
 				}
 			}
 		}
@@ -222,6 +208,16 @@ func (service *AppointmentServiceImpl) filterAppointments(districtAppointments [
 	return appSessArr
 }
 
-func generateAppointmentSession(sess model.Session, center model.Center) (model.AppointmentSession, error) {
-	return model.AppointmentSession{}, nil
-}
+// func generateAppointmentSession(sess model.Session) model.AppointmentSession {
+// 	appSess := model.AppointmentSession{
+// 		CenterIDFK:             -1,
+// 		SessionID:              sess.SessionID,
+// 		Date:                   sess.Date,
+// 		AvailableCapacity:      sess.AvailableCapacity,
+// 		MinAgeLimit:            sess.MinAgeLimit,
+// 		VaccineIDKF:            "-1",
+// 		AvailableCapacityDose1: sess.AvailableCapacityDose1,
+// 		AvailableCapacityDose2: sess.AvailableCapacityDose2,
+// 	}
+// 	return appSess
+// }

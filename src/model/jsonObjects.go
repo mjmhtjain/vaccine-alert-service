@@ -35,17 +35,6 @@ type Session struct {
 	AvailableCapacityDose2 int      `json:"available_capacity_dose2"`
 }
 
-type AppointmentSession struct {
-	CenterIDFK             int
-	SessionID              string
-	Date                   string
-	AvailableCapacity      int
-	MinAgeLimit            int
-	VaccineIDKF            string
-	AvailableCapacityDose1 int
-	AvailableCapacityDose2 int
-}
-
 type StateDistricts struct {
 	Districts []StateDistrict `json:"districts"`
 	TTL       int             `json:"ttl"`

@@ -1,9 +1,17 @@
 package customerror
 
-type RecordExists struct {
-	msg string
+type NoRecordExists struct {
+	Msg string
 }
 
-func (re *RecordExists) Error() string {
-	return re.msg
+func (re *NoRecordExists) Error() string {
+	return re.Msg
+}
+
+type DBQueryScanError struct {
+	Msg string
+}
+
+func (re *DBQueryScanError) Error() string {
+	return re.Msg
 }

@@ -12,17 +12,17 @@ CREATE TABLE IF NOT EXISTS vaccine(
 );
 
 CREATE TABLE IF NOT EXISTS center_info(
-    center_id INT,
-    name VARCHAR(16),
-    address VARCHAR(32),
+    id INT,
+    name VARCHAR(40),
+    address TEXT,
     state_name VARCHAR(16),
     district_name VARCHAR(16),
     pincode INT,
-    PRIMARY KEY(center_id)
+    PRIMARY KEY(id)
 );
 
 CREATE TABLE IF NOT EXISTS appointment_session(
-    session_id BINARY(36),
+    id BINARY(36),
     center_idfk INT, 
     date VARCHAR(16),
     available_capacity INT,
@@ -30,11 +30,11 @@ CREATE TABLE IF NOT EXISTS appointment_session(
     vaccine_idfk  BINARY(16),
     available_capacity_dose1 INT,
     available_capacity_dose2 INT,
-    PRIMARY KEY(session_id),
+    PRIMARY KEY(id),
     FOREIGN KEY (vaccine_idfk)
         REFERENCES vaccine(id)
         ON DELETE CASCADE,
     FOREIGN KEY (center_idfk)
-        REFERENCES center_info(center_id)
+        REFERENCES center_info(id)
         ON DELETE CASCADE
 );
