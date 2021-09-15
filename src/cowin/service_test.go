@@ -18,7 +18,7 @@ func TestAppointmentService_SqlRepo(t *testing.T) {
 	mockStaticFS := mock.NewMockStaticFileService()
 
 	t.Run("When sqlRepo has no appointments data stored.. Then expect all sessions returned", func(t *testing.T) {
-		mockSqlRepo := mock.NewMockSqlRepoImpl(nil, nil, nil, nil, nil, nil)
+		mockSqlRepo := mock.NewMockSqlRepoImpl()
 
 		appointmentService := &AppointmentServiceImpl{
 			cowin:    mockCowin,
@@ -42,7 +42,7 @@ func TestAppointmentService_SqlRepo(t *testing.T) {
 	})
 
 	t.Run("When sqlRepo contains data for centers and vaccine but no session data.. Then expect all sessions returned", func(t *testing.T) {
-		mockSqlRepo := mock.NewMockSqlRepoImpl(nil, nil, nil, nil, nil, nil)
+		mockSqlRepo := mock.NewMockSqlRepoImpl()
 
 		appointmentService := &AppointmentServiceImpl{
 			cowin:    mockCowin,
@@ -72,7 +72,7 @@ func TestAppointmentService_SqlRepo(t *testing.T) {
 	})
 
 	t.Run("When all stale sessions data is given .. Then expect 0 sessions returned", func(t *testing.T) {
-		mockSqlRepo := mock.NewMockSqlRepoImpl(nil, nil, nil, nil, nil, nil)
+		mockSqlRepo := mock.NewMockSqlRepoImpl()
 
 		appointmentService := &AppointmentServiceImpl{
 			cowin:    mockCowin,
@@ -112,7 +112,7 @@ func TestAppointmentService_SqlRepo(t *testing.T) {
 		}
 
 		mockCowin := mock.NewMockCowinAPI(appointments)
-		mockSqlRepo := mock.NewMockSqlRepoImpl(nil, nil, nil, nil, nil, nil)
+		mockSqlRepo := mock.NewMockSqlRepoImpl()
 
 		appointmentService := &AppointmentServiceImpl{
 			cowin:    mockCowin,
@@ -140,6 +140,31 @@ func TestAppointmentService_SqlRepo(t *testing.T) {
 		}
 	})
 
+}
+
+func TestAppointmentService_CowinService(t *testing.T) {
+	t.Run("When CowinService responds with fresh sessions.. Then expect sessions in result", func(t *testing.T) {
+		// appointments := model.Appointments{}
+		// ReadJsonFile("../mock/session_1.json", &appointments)
+
+		// mockCowin := mock.NewMockCowinAPI(appointments)
+		// mockStaticFS := mock.NewMockStaticFileService()
+		// mockSqlRepo := mock.NewMockSqlRepoImpl()
+
+		// appointmentService := &AppointmentServiceImpl{
+		// 	cowin:    mockCowin,
+		// 	staticFS: mockStaticFS,
+		// 	sqlRepo:  mockSqlRepo,
+		// }
+	})
+
+	t.Run("When CowinService throws error.. Then expect panic", func(t *testing.T) {})
+
+	t.Run("When CowinService gives no sessions.. Then expect empty response", func(t *testing.T) {})
+
+	t.Run("When CowinService gives stale sessions.. Then expect empty response", func(t *testing.T) {})
+
+	t.Run("When CowinService times out .. Then expect panic", func(t *testing.T) {})
 }
 
 func ReadJsonFile(relativeFilePath string, model interface{}) {

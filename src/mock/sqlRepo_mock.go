@@ -6,57 +6,8 @@ import (
 	"github.com/mjmhtjain/vaccine-alert-service/src/repo/sql"
 )
 
-// SetResponse Mock
-// func NewMockSqlRepoImpl_SetResponse(isSessionExist bool) sql.SqlRepo {
-// 	return &MockSqlRepoImpl_SetResponse{
-// 		isSessionExistResp: isSessionExist,
-// 	}
-// }
-
-// type MockSqlRepoImpl_SetResponse struct {
-// 	isSessionExistResp bool
-// }
-
-// func (impl *MockSqlRepoImpl) FindCenterWithCenterId(center model.Center) (*model.CenterORM, error) {
-// 	return nil, nil
-// }
-
-// func (impl *MockSqlRepoImpl) FindSessionWithSessionId(sess model.Session) (*model.AppointmentSessionORM, error) {
-// 	return nil, nil
-// }
-
-// func (impl *MockSqlRepoImpl) FindVaccineByName(name string) (*model.VaccineORM, error) {
-// 	return nil, nil
-// }
-
-// func (impl *MockSqlRepoImpl) InsertCenterInfo(center model.Center) (*model.CenterORM, error) {
-// 	return nil, nil
-// }
-
-// func (impl *MockSqlRepoImpl) InsertVaccine(sess model.Session) (*model.VaccineORM, error) {
-// 	return nil, nil
-// }
-
-// func (impl *MockSqlRepoImpl) InsertAppointmentSession(appSess *model.Session, centerId int, vaccineId string) (*model.AppointmentSessionORM, error) {
-// 	return nil, nil
-// }
-
-// RecordSessions Mock
-func NewMockSqlRepoImpl(
-	FindCenterWithCenterIdResponse *model.CenterORM,
-	FindSessionWithSessionIdResponse *model.AppointmentSessionORM,
-	FindVaccineByNameResponse *model.VaccineORM,
-	InsertCenterInfoResponse *model.CenterORM,
-	InsertVaccineResponse *model.VaccineORM,
-	InsertAppointmentSessionResponse *model.AppointmentSessionORM,
-) sql.SqlRepo {
+func NewMockSqlRepoImpl() sql.SqlRepo {
 	return &MockSqlRepoImpl{
-		// FindCenterWithCenterIdResponse:   FindCenterWithCenterIdResponse,
-		// FindSessionWithSessionIdResponse: FindSessionWithSessionIdResponse,
-		// FindVaccineByNameResponse:        FindVaccineByNameResponse,
-		// InsertCenterInfoResponse:         InsertCenterInfoResponse,
-		// InsertVaccineResponse:            InsertVaccineResponse,
-		// InsertAppointmentSessionResponse: InsertAppointmentSessionResponse,
 		centerMap:      make(map[int]bool),
 		vaccineNameMap: make(map[string]bool),
 		sessionMap:     make(map[string]bool),
@@ -64,15 +15,9 @@ func NewMockSqlRepoImpl(
 }
 
 type MockSqlRepoImpl struct {
-	FindCenterWithCenterIdResponse   *model.CenterORM
-	FindSessionWithSessionIdResponse *model.AppointmentSessionORM
-	FindVaccineByNameResponse        *model.VaccineORM
-	InsertCenterInfoResponse         *model.CenterORM
-	InsertVaccineResponse            *model.VaccineORM
-	InsertAppointmentSessionResponse *model.AppointmentSessionORM
-	centerMap                        map[int]bool
-	vaccineNameMap                   map[string]bool
-	sessionMap                       map[string]bool
+	centerMap      map[int]bool
+	vaccineNameMap map[string]bool
+	sessionMap     map[string]bool
 }
 
 func (impl *MockSqlRepoImpl) FindCenterWithCenterId(center model.Center) (*model.CenterORM, error) {
