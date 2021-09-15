@@ -1,22 +1,30 @@
 package mock
 
 import (
+	"errors"
+
 	"github.com/mjmhtjain/vaccine-alert-service/src/model"
 	cowinrepo "github.com/mjmhtjain/vaccine-alert-service/src/repo/cowinRepo"
 )
 
-func NewMockCowinAPI(setResponse model.Appointments) cowinrepo.CowinAPI {
+func NewMockCowinAPI(setResponse *model.Appointments) cowinrepo.CowinAPI {
 	return &CowinAPIMockImpl{
 		response: setResponse,
 	}
 }
 
 type CowinAPIMockImpl struct {
-	response model.Appointments
+	response *model.Appointments
 }
 
 func (mock *CowinAPIMockImpl) AppointmentSessionByDistrictAndCalendar(
-	districtId string, date string,
+	districtId string,
+	date string,
 ) (*model.Appointments, error) {
-	return &mock.response, nil
+
+	if mock.response != nil {
+		return mock.response, nil
+	}
+
+	return nil, errors.New("mock error")
 }

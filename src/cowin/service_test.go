@@ -14,7 +14,7 @@ func TestAppointmentService_SqlRepo(t *testing.T) {
 	appointments := model.Appointments{}
 	ReadJsonFile("../mock/session_1.json", &appointments)
 
-	mockCowin := mock.NewMockCowinAPI(appointments)
+	mockCowin := mock.NewMockCowinAPI(&appointments)
 	mockStaticFS := mock.NewMockStaticFileService()
 
 	t.Run("When sqlRepo has no appointments data stored.. Then expect all sessions returned", func(t *testing.T) {
@@ -111,7 +111,7 @@ func TestAppointmentService_SqlRepo(t *testing.T) {
 			appointments.Centers[0].Sessions = append(appointments.Centers[0].Sessions, tempSession)
 		}
 
-		mockCowin := mock.NewMockCowinAPI(appointments)
+		mockCowin := mock.NewMockCowinAPI(&appointments)
 		mockSqlRepo := mock.NewMockSqlRepoImpl()
 
 		appointmentService := &AppointmentServiceImpl{
@@ -143,26 +143,78 @@ func TestAppointmentService_SqlRepo(t *testing.T) {
 }
 
 func TestAppointmentService_CowinService(t *testing.T) {
+	mockStaticFS := mock.NewMockStaticFileService()
+	mockSqlRepo := mock.NewMockSqlRepoImpl()
+
 	t.Run("When CowinService responds with fresh sessions.. Then expect sessions in result", func(t *testing.T) {
-		// appointments := model.Appointments{}
-		// ReadJsonFile("../mock/session_1.json", &appointments)
+		appointments := model.Appointments{}
+		ReadJsonFile("../mock/session_1.json", &appointments)
+		mockCowin := mock.NewMockCowinAPI(&appointments)
 
-		// mockCowin := mock.NewMockCowinAPI(appointments)
-		// mockStaticFS := mock.NewMockStaticFileService()
-		// mockSqlRepo := mock.NewMockSqlRepoImpl()
+		appointmentService := &AppointmentServiceImpl{
+			cowin:    mockCowin,
+			staticFS: mockStaticFS,
+			sqlRepo:  mockSqlRepo,
+		}
 
-		// appointmentService := &AppointmentServiceImpl{
-		// 	cowin:    mockCowin,
-		// 	staticFS: mockStaticFS,
-		// 	sqlRepo:  mockSqlRepo,
-		// }
+		// assert
+		expectedAppointments := 1
+		districtVaccineSlots, err := appointmentService.FetchVaccineAppointments("Delhi", "2019-04-01")
+		if err != nil {
+			t.Errorf("unexpected error in fetching appointments: %s", err)
+		}
+
+		if len(districtVaccineSlots) != expectedAppointments {
+			t.Errorf(
+				"expected number of records %v, actual number of records %v",
+				expectedAppointments,
+				len(districtVaccineSlots),
+			)
+		}
 	})
 
-	t.Run("When CowinService throws error.. Then expect panic", func(t *testing.T) {})
+	t.Run("When CowinService gives no sessions.. Then expect empty response", func(t *testing.T) {
+		appointments := model.Appointments{}
+		ReadJsonFile("../mock/session_1.json", &appointments)
+		appointments.Centers = appointments.Centers[:0]
 
-	t.Run("When CowinService gives no sessions.. Then expect empty response", func(t *testing.T) {})
+		mockCowin := mock.NewMockCowinAPI(&appointments)
 
-	t.Run("When CowinService gives stale sessions.. Then expect empty response", func(t *testing.T) {})
+		appointmentService := &AppointmentServiceImpl{
+			cowin:    mockCowin,
+			staticFS: mockStaticFS,
+			sqlRepo:  mockSqlRepo,
+		}
+
+		// assert
+		expectedAppointments := 0
+		districtVaccineSlots, err := appointmentService.FetchVaccineAppointments("Delhi", "2019-04-01")
+		if err != nil {
+			t.Errorf("unexpected error in fetching appointments: %s", err)
+		}
+
+		if len(districtVaccineSlots) != expectedAppointments {
+			t.Errorf(
+				"expected number of records %v, actual number of records %v",
+				expectedAppointments,
+				len(districtVaccineSlots),
+			)
+		}
+	})
+
+	t.Run("When CowinService throws error.. Then expect panic", func(t *testing.T) {
+		mockCowin := mock.NewMockCowinAPI(nil)
+		defer PanicCheck(t)
+
+		appointmentService := &AppointmentServiceImpl{
+			cowin:    mockCowin,
+			staticFS: mockStaticFS,
+			sqlRepo:  mockSqlRepo,
+		}
+
+		// call appointment service
+		appointmentService.FetchVaccineAppointments("Delhi", "2019-04-01")
+	})
 
 	t.Run("When CowinService times out .. Then expect panic", func(t *testing.T) {})
 }
@@ -181,5 +233,11 @@ func ReadJsonFile(relativeFilePath string, model interface{}) {
 func ErrorPanic(err error) {
 	if err != nil {
 		panic(err)
+	}
+}
+
+func PanicCheck(t *testing.T) {
+	if r := recover(); r == nil {
+		t.Errorf("The code did not panic")
 	}
 }

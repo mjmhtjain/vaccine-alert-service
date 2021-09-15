@@ -52,7 +52,7 @@ func (service *AppointmentServiceImpl) FetchVaccineAppointments(stateName string
 
 	districtAppointments, err = service.requestAppointmentsFromCentres(districts, date)
 	if err != nil {
-		return nil, err
+		panic(err)
 	}
 
 	filteredAppointments := service.filterAppointments(districtAppointments)
