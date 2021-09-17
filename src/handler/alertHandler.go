@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -40,7 +41,10 @@ func (ctrl *AppointmentControllerImpl) fetchAppointments(w http.ResponseWriter, 
 
 	log.Printf("stateName: %v", stateName)
 
-	appointments, err := ctrl.cowinService.FetchVaccineAppointments(stateName, util.TodaysDate())
+	ctx, cancel := context.WithTimeout(r.Context(), util.SLATimeout)
+	defer cancel()
+
+	appointments, err := ctrl.cowinService.FetchVaccineAppointments(ctx, stateName, util.TodaysDate())
 	if err != nil {
 		log.Printf("Error occured while fetching Appointments: %v\n", err)
 		w.WriteHeader(http.StatusInternalServerError)

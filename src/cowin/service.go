@@ -1,6 +1,7 @@
 package cowin
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -16,7 +17,7 @@ import (
 )
 
 type AppointmentService interface {
-	FetchVaccineAppointments(stateId string, date string) ([]model.AppointmentSessionORM, error)
+	FetchVaccineAppointments(ctx context.Context, stateName string, date string) ([]model.AppointmentSessionORM, error)
 }
 
 type AppointmentServiceImpl struct {
@@ -33,7 +34,11 @@ func NewAppointmentService() AppointmentService {
 	}
 }
 
-func (service *AppointmentServiceImpl) FetchVaccineAppointments(stateName string, date string) ([]model.AppointmentSessionORM, error) {
+func (service *AppointmentServiceImpl) FetchVaccineAppointments(
+	ctx context.Context,
+	stateName string,
+	date string,
+) ([]model.AppointmentSessionORM, error) {
 	logger.INFO.Printf("FetchVaccineAppointments stateId: %v date: %v \n", stateName, date)
 	var (
 		stateId              string
@@ -50,11 +55,11 @@ func (service *AppointmentServiceImpl) FetchVaccineAppointments(stateName string
 	util.ErrorPanic(err)
 
 	// fetch all appointments for a district
-	districtAppointments, err = service.requestAppointmentsFromCentres(districts, date)
+	districtAppointments, err = service.requestAppointmentsFromCentres(ctx, districts, date)
 	util.ErrorPanic(err)
 
 	// filter out stale appointments
-	filteredAppointments := service.filterAppointments(districtAppointments)
+	filteredAppointments := service.filterAppointments(ctx, districtAppointments)
 
 	return filteredAppointments, nil
 }
@@ -105,6 +110,7 @@ func (service *AppointmentServiceImpl) fetchDistricts(stateId string) (*model.St
 }
 
 func (appService *AppointmentServiceImpl) requestAppointmentsFromCentres(
+	ctx context.Context,
 	districts *model.StateDistricts,
 	date string,
 ) ([]model.Appointments, error) {
@@ -114,32 +120,44 @@ func (appService *AppointmentServiceImpl) requestAppointmentsFromCentres(
 	resChan := make(chan model.CowinAppointmentResponse)
 	defer close(resChan)
 
-	districtCount := len(districts.Districts)
 	workerCount := 5
 	districtChan := make(chan string)
-	defer close(districtChan)
 
-	// start workers
+	// start worker go routines
 	for i := 0; i < workerCount; i++ {
 		go appService.requestWorker(date, resChan, districtChan)
 	}
 
-	// send all the data
+	// send jobs to worker routines in async manner
 	go func() {
+		defer close(districtChan) // writer closes channel
+
 		for _, d := range districts.Districts {
+
+			select {
+			// case districtChan <- fmt.Sprint(d.DistrictID):
+			case <-ctx.Done():
+				return // exit go routine if ctx cancels
+			default:
+				// ctx is not cancelled
+			}
+
 			districtChan <- fmt.Sprint(d.DistrictID)
 		}
 	}()
 
-	// collect data
+	// collect output from workers in sync manner
 	// TODO: need to think about timeouts
-	for i := 0; i < districtCount; i++ {
-		res := <-resChan
-
-		if res.Err != nil {
-			logger.ERROR.Printf("%v\n", res.Err)
-		} else {
-			appoitments = append(appoitments, res.AppointmentData)
+	for i := 0; i < len(districts.Districts); i++ {
+		select {
+		case res := <-resChan:
+			if res.Err != nil {
+				logger.ERROR.Printf("%v\n", res.Err)
+			} else {
+				appoitments = append(appoitments, res.AppointmentData)
+			}
+		case <-ctx.Done():
+			return nil, errors.New("context cancelled")
 		}
 	}
 
@@ -170,7 +188,10 @@ func (appService *AppointmentServiceImpl) requestWorker(
 
 }
 
-func (service *AppointmentServiceImpl) filterAppointments(districtAppointments []model.Appointments) []model.AppointmentSessionORM {
+func (service *AppointmentServiceImpl) filterAppointments(
+	ctx context.Context,
+	districtAppointments []model.Appointments,
+) []model.AppointmentSessionORM {
 	var (
 		appSessArr       = []model.AppointmentSessionORM{}
 		noRecordExistErr *customerror.NoRecordExists
@@ -180,23 +201,23 @@ func (service *AppointmentServiceImpl) filterAppointments(districtAppointments [
 		for _, center := range distApp.Centers {
 			for _, sess := range center.Sessions {
 
-				_, err := service.sqlRepo.FindSessionWithSessionId(&sess)
+				_, err := service.sqlRepo.FindSessionWithSessionId(ctx, &sess)
 				if err != nil && errors.As(err, &noRecordExistErr) {
 
 					// find/insert center info
-					centerOrm, err := service.sqlRepo.FindCenterWithCenterId(center)
+					centerOrm, err := service.sqlRepo.FindCenterWithCenterId(ctx, center)
 					if err != nil && errors.As(err, &noRecordExistErr) {
-						centerOrm = service.sqlRepo.InsertCenterInfo(center)
+						centerOrm = service.sqlRepo.InsertCenterInfo(ctx, center)
 					}
 
 					// find/insert vaccine info
-					vaccinOrm, err := service.sqlRepo.FindVaccineByName(sess.Vaccine)
+					vaccinOrm, err := service.sqlRepo.FindVaccineByName(ctx, sess.Vaccine)
 					if err != nil && errors.As(err, &noRecordExistErr) {
-						vaccinOrm = service.sqlRepo.InsertVaccine(sess.Vaccine)
+						vaccinOrm = service.sqlRepo.InsertVaccine(ctx, sess.Vaccine)
 					}
 
 					// insert session info
-					sessionOrm := service.sqlRepo.InsertAppointmentSession(&sess, centerOrm.Id, vaccinOrm.Id)
+					sessionOrm := service.sqlRepo.InsertAppointmentSession(ctx, &sess, centerOrm.Id, vaccinOrm.Id)
 
 					appSessArr = append(appSessArr, *sessionOrm)
 				}
@@ -206,17 +227,3 @@ func (service *AppointmentServiceImpl) filterAppointments(districtAppointments [
 
 	return appSessArr
 }
-
-// func generateAppointmentSession(sess model.Session) model.AppointmentSession {
-// 	appSess := model.AppointmentSession{
-// 		CenterIDFK:             -1,
-// 		SessionID:              sess.SessionID,
-// 		Date:                   sess.Date,
-// 		AvailableCapacity:      sess.AvailableCapacity,
-// 		MinAgeLimit:            sess.MinAgeLimit,
-// 		VaccineIDKF:            "-1",
-// 		AvailableCapacityDose1: sess.AvailableCapacityDose1,
-// 		AvailableCapacityDose2: sess.AvailableCapacityDose2,
-// 	}
-// 	return appSess
-// }

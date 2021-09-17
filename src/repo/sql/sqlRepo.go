@@ -1,6 +1,7 @@
 package sql
 
 import (
+	"context"
 	"errors"
 
 	customerror "github.com/mjmhtjain/vaccine-alert-service/src/customError"
@@ -11,27 +12,15 @@ import (
 
 var sqlRepoInstance SqlRepo
 
-const (
-	findSessionBySessionId string = `select session_id from appointment_session where session_id = ?`
-	findVaccineByName      string = `select name from vaccine where name = ?`
-	findCenterById                = `select center_id from center_info where center_id = ?`
-	insertCenterInfo              = `insert into center_info 
-									(center_id, name, address,state_name,district_name,pincode) 
-									values (?, ?, ?,?, ?, ?)`
-	insertVaccineInfo        string = `insert into vaccine (id, name) values (?, ?)`
-	insertAppointmentSession string = `insert into appointment_session 
-								(session_id, center_idfk, date, available_capacity, min_age_limit, vaccine_idfk, available_capacity_dose1,available_capacity_dose2) 
-								values (?, ?,?, ?,?, ?,?, ?)`
-)
-
 type SqlRepo interface {
-	FindCenterWithCenterId(center model.Center) (*model.CenterORM, error)
-	FindSessionWithSessionId(sess *model.Session) (*model.AppointmentSessionORM, error)
-	FindVaccineByName(name string) (*model.VaccineORM, error)
+	FindCenterWithCenterId(ctx context.Context, center model.Center) (*model.CenterORM, error)
+	InsertCenterInfo(ctx context.Context, center model.Center) *model.CenterORM
 
-	InsertCenterInfo(center model.Center) *model.CenterORM
-	InsertVaccine(vaccineName string) *model.VaccineORM
-	InsertAppointmentSession(appSess *model.Session, centerId int, vaccineId string) *model.AppointmentSessionORM
+	FindVaccineByName(ctx context.Context, name string) (*model.VaccineORM, error)
+	InsertVaccine(ctx context.Context, vaccineName string) *model.VaccineORM
+
+	FindSessionWithSessionId(ctx context.Context, sess *model.Session) (*model.AppointmentSessionORM, error)
+	InsertAppointmentSession(ctx context.Context, appSess *model.Session, centerId int, vaccineId string) *model.AppointmentSessionORM
 }
 
 type SqlRepoImpl struct {
@@ -48,11 +37,11 @@ func NewSqlRepo() SqlRepo {
 	return sqlRepoInstance
 }
 
-// TODO:: handle context related complexities
-func (impl *SqlRepoImpl) FindCenterWithCenterId(center model.Center) (*model.CenterORM, error) {
+func (impl *SqlRepoImpl) FindCenterWithCenterId(ctx context.Context, center model.Center) (*model.CenterORM, error) {
 	centerOrm := model.CenterORM{}
+	db := impl.dbConn.WithContext(ctx)
 
-	result := impl.dbConn.Find(&centerOrm, "id = ?", center.CenterID)
+	result := db.Find(&centerOrm, "id = ?", center.CenterID)
 	if result.RowsAffected <= 0 || errors.Is(result.Error, gorm.ErrRecordNotFound) {
 		return nil, &customerror.NoRecordExists{Msg: "No record found"}
 	}
@@ -64,10 +53,11 @@ func (impl *SqlRepoImpl) FindCenterWithCenterId(center model.Center) (*model.Cen
 	return &centerOrm, nil
 }
 
-func (impl *SqlRepoImpl) FindSessionWithSessionId(sess *model.Session) (*model.AppointmentSessionORM, error) {
+func (impl *SqlRepoImpl) FindSessionWithSessionId(ctx context.Context, sess *model.Session) (*model.AppointmentSessionORM, error) {
 	app := model.AppointmentSessionORM{}
+	db := impl.dbConn.WithContext(ctx)
 
-	result := impl.dbConn.Find(&app, "id = ?", sess.SessionID)
+	result := db.Find(&app, "id = ?", sess.SessionID)
 	if result.RowsAffected <= 0 || errors.Is(result.Error, gorm.ErrRecordNotFound) {
 		return nil, &customerror.NoRecordExists{Msg: "No record found"}
 	}
@@ -78,10 +68,11 @@ func (impl *SqlRepoImpl) FindSessionWithSessionId(sess *model.Session) (*model.A
 	return &app, nil
 }
 
-func (impl *SqlRepoImpl) FindVaccineByName(vaccineName string) (*model.VaccineORM, error) {
+func (impl *SqlRepoImpl) FindVaccineByName(ctx context.Context, vaccineName string) (*model.VaccineORM, error) {
 	vaccine := model.VaccineORM{}
+	db := impl.dbConn.WithContext(ctx)
 
-	result := impl.dbConn.Find(&vaccine, "name = ?", vaccineName)
+	result := db.Find(&vaccine, "name = ?", vaccineName)
 	if result.RowsAffected <= 0 || errors.Is(result.Error, gorm.ErrRecordNotFound) {
 		return nil, &customerror.NoRecordExists{Msg: "No record found"}
 	}
@@ -92,7 +83,7 @@ func (impl *SqlRepoImpl) FindVaccineByName(vaccineName string) (*model.VaccineOR
 	return &vaccine, nil
 }
 
-func (impl *SqlRepoImpl) InsertCenterInfo(center model.Center) *model.CenterORM {
+func (impl *SqlRepoImpl) InsertCenterInfo(ctx context.Context, center model.Center) *model.CenterORM {
 	centerEntry := model.CenterORM{
 		Id:           center.CenterID,
 		Name:         center.Name,
@@ -101,8 +92,9 @@ func (impl *SqlRepoImpl) InsertCenterInfo(center model.Center) *model.CenterORM 
 		DistrictName: center.DistrictName,
 		Pincode:      center.Pincode,
 	}
+	db := impl.dbConn.WithContext(ctx)
 
-	result := impl.dbConn.Create(&centerEntry)
+	result := db.Create(&centerEntry)
 	if result.Error != nil {
 		panic(result.Error)
 	}
@@ -110,12 +102,14 @@ func (impl *SqlRepoImpl) InsertCenterInfo(center model.Center) *model.CenterORM 
 	return &centerEntry
 }
 
-func (impl *SqlRepoImpl) InsertVaccine(vaccineName string) *model.VaccineORM {
+func (impl *SqlRepoImpl) InsertVaccine(ctx context.Context, vaccineName string) *model.VaccineORM {
 	vaccine := model.VaccineORM{
 		Id:   generateUUID_8(),
 		Name: vaccineName,
 	}
-	result := impl.dbConn.Create(&vaccine)
+	db := impl.dbConn.WithContext(ctx)
+
+	result := db.Create(&vaccine)
 	if result.Error != nil {
 		panic(result.Error)
 	}
@@ -124,11 +118,12 @@ func (impl *SqlRepoImpl) InsertVaccine(vaccineName string) *model.VaccineORM {
 }
 
 func (impl *SqlRepoImpl) InsertAppointmentSession(
+	ctx context.Context,
 	appSess *model.Session,
 	centerId int,
 	vaccineId string,
 ) *model.AppointmentSessionORM {
-
+	db := impl.dbConn.WithContext(ctx)
 	appointment := model.AppointmentSessionORM{
 		Id:                     appSess.SessionID,
 		CenterIDFK:             centerId,
@@ -140,7 +135,7 @@ func (impl *SqlRepoImpl) InsertAppointmentSession(
 		AvailableCapacityDose2: appSess.AvailableCapacityDose2,
 	}
 
-	result := impl.dbConn.Create(&appointment)
+	result := db.Create(&appointment)
 	if result.Error != nil {
 		panic(result.Error)
 	}

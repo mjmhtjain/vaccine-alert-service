@@ -1,6 +1,7 @@
 package cowin
 
 import (
+	"context"
 	"encoding/json"
 	"path/filepath"
 	"testing"
@@ -12,6 +13,7 @@ import (
 
 func TestAppointmentService_SqlRepo(t *testing.T) {
 	appointments := model.Appointments{}
+	ctx := context.Background()
 	ReadJsonFile("../mock/session_1.json", &appointments)
 
 	mockCowin := mock.NewMockCowinAPI(&appointments)
@@ -27,7 +29,7 @@ func TestAppointmentService_SqlRepo(t *testing.T) {
 		}
 
 		expectedAppointments := 1
-		districtVaccineSlots, err := appointmentService.FetchVaccineAppointments("Delhi", "2019-04-01")
+		districtVaccineSlots, err := appointmentService.FetchVaccineAppointments(ctx, "Delhi", "2019-04-01")
 		if err != nil {
 			t.Errorf("unexpected error in fetching appointments: %s", err)
 		}
@@ -53,11 +55,11 @@ func TestAppointmentService_SqlRepo(t *testing.T) {
 		// inserting center and vaccine data
 		s := appointments.Centers[0].Sessions[0]
 		s.SessionID = "123"
-		mockSqlRepo.InsertAppointmentSession(&s, 123, "id")
+		mockSqlRepo.InsertAppointmentSession(ctx, &s, 123, "id")
 
 		// asserting
 		expectedAppointments := 1
-		districtVaccineSlots, err := appointmentService.FetchVaccineAppointments("Delhi", "2019-04-01")
+		districtVaccineSlots, err := appointmentService.FetchVaccineAppointments(ctx, "Delhi", "2019-04-01")
 		if err != nil {
 			t.Errorf("unexpected error in fetching appointments: %s", err)
 		}
@@ -83,12 +85,12 @@ func TestAppointmentService_SqlRepo(t *testing.T) {
 		// inserting the appointments in advance
 		for _, c := range appointments.Centers {
 			for _, s := range c.Sessions {
-				mockSqlRepo.InsertAppointmentSession(&s, 123, "id")
+				mockSqlRepo.InsertAppointmentSession(ctx, &s, 123, "id")
 			}
 		}
 
 		expectedAppointments := 0
-		districtVaccineSlots, err := appointmentService.FetchVaccineAppointments("Delhi", "2019-04-01")
+		districtVaccineSlots, err := appointmentService.FetchVaccineAppointments(ctx, "Delhi", "2019-04-01")
 		if err != nil {
 			t.Errorf("unexpected error in fetching appointments: %s", err)
 		}
@@ -122,11 +124,11 @@ func TestAppointmentService_SqlRepo(t *testing.T) {
 
 		// inserting stale appointments in sqlRepo
 		tempSession := appointments.Centers[0].Sessions[0]
-		mockSqlRepo.InsertAppointmentSession(&tempSession, 123, "id")
+		mockSqlRepo.InsertAppointmentSession(ctx, &tempSession, 123, "id")
 
 		// asserting
 		expectedAppointments := 2
-		districtVaccineSlots, err := appointmentService.FetchVaccineAppointments("Delhi", "2019-04-01")
+		districtVaccineSlots, err := appointmentService.FetchVaccineAppointments(ctx, "Delhi", "2019-04-01")
 		if err != nil {
 			t.Errorf("unexpected error in fetching appointments: %s", err)
 		}
@@ -139,10 +141,10 @@ func TestAppointmentService_SqlRepo(t *testing.T) {
 			)
 		}
 	})
-
 }
 
 func TestAppointmentService_CowinService(t *testing.T) {
+	ctx := context.Background()
 	mockStaticFS := mock.NewMockStaticFileService()
 	mockSqlRepo := mock.NewMockSqlRepoImpl()
 
@@ -159,7 +161,7 @@ func TestAppointmentService_CowinService(t *testing.T) {
 
 		// assert
 		expectedAppointments := 1
-		districtVaccineSlots, err := appointmentService.FetchVaccineAppointments("Delhi", "2019-04-01")
+		districtVaccineSlots, err := appointmentService.FetchVaccineAppointments(ctx, "Delhi", "2019-04-01")
 		if err != nil {
 			t.Errorf("unexpected error in fetching appointments: %s", err)
 		}
@@ -188,7 +190,7 @@ func TestAppointmentService_CowinService(t *testing.T) {
 
 		// assert
 		expectedAppointments := 0
-		districtVaccineSlots, err := appointmentService.FetchVaccineAppointments("Delhi", "2019-04-01")
+		districtVaccineSlots, err := appointmentService.FetchVaccineAppointments(ctx, "Delhi", "2019-04-01")
 		if err != nil {
 			t.Errorf("unexpected error in fetching appointments: %s", err)
 		}
@@ -213,10 +215,36 @@ func TestAppointmentService_CowinService(t *testing.T) {
 		}
 
 		// call appointment service
-		appointmentService.FetchVaccineAppointments("Delhi", "2019-04-01")
+		appointmentService.FetchVaccineAppointments(ctx, "Delhi", "2019-04-01")
+	})
+}
+
+func TestAppointmentService_ContextCancel(t *testing.T) {
+	ctx := context.Background()
+	mockStaticFS := mock.NewMockStaticFileService()
+	mockSqlRepo := mock.NewMockSqlRepoImpl()
+
+	t.Run("When Root context gets cancelled.. Then expect panic response", func(t *testing.T) {
+		appointments := model.Appointments{}
+		ctx, cancel := context.WithCancel(ctx)
+		ReadJsonFile("../mock/session_1.json", &appointments)
+		defer PanicCheck(t)
+
+		mockCowin := mock.NewMockCowinAPI(&appointments)
+
+		appointmentService := &AppointmentServiceImpl{
+			cowin:    mockCowin,
+			staticFS: mockStaticFS,
+			sqlRepo:  mockSqlRepo,
+		}
+
+		// cancel context almost immediately
+		go func() {
+			cancel()
+		}()
+		appointmentService.FetchVaccineAppointments(ctx, "Delhi", "2019-04-01")
 	})
 
-	t.Run("When CowinService times out .. Then expect panic", func(t *testing.T) {})
 }
 
 func ReadJsonFile(relativeFilePath string, model interface{}) {
