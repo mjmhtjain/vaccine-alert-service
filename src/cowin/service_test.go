@@ -55,7 +55,7 @@ func TestAppointmentService_SqlRepo(t *testing.T) {
 		// inserting center and vaccine data
 		s := appointments.Centers[0].Sessions[0]
 		s.SessionID = "123"
-		mockSqlRepo.InsertAppointmentSession(ctx, &s, 123, "id")
+		mockSqlRepo.InsertAppointmentSession(ctx, &s, 123)
 
 		// asserting
 		expectedAppointments := 1
@@ -85,7 +85,7 @@ func TestAppointmentService_SqlRepo(t *testing.T) {
 		// inserting the appointments in advance
 		for _, c := range appointments.Centers {
 			for _, s := range c.Sessions {
-				mockSqlRepo.InsertAppointmentSession(ctx, &s, 123, "id")
+				mockSqlRepo.InsertAppointmentSession(ctx, &s, 123)
 			}
 		}
 
@@ -124,7 +124,7 @@ func TestAppointmentService_SqlRepo(t *testing.T) {
 
 		// inserting stale appointments in sqlRepo
 		tempSession := appointments.Centers[0].Sessions[0]
-		mockSqlRepo.InsertAppointmentSession(ctx, &tempSession, 123, "id")
+		mockSqlRepo.InsertAppointmentSession(ctx, &tempSession, 123)
 
 		// asserting
 		expectedAppointments := 2

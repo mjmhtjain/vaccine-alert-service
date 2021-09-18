@@ -70,7 +70,7 @@ func (impl *MockSqlRepoImpl) FindSessionWithSessionId(ctx context.Context, sess 
 	return nil, &customerror.NoRecordExists{}
 }
 
-func (impl *MockSqlRepoImpl) InsertAppointmentSession(ctx context.Context, appSess *model.Session, centerId int, vaccineId string) *model.AppointmentSessionORM {
+func (impl *MockSqlRepoImpl) InsertAppointmentSession(ctx context.Context, appSess *model.Session, centerId int) *model.AppointmentSessionORM {
 	impl.sessionMap[appSess.SessionID] = true
 
 	return &model.AppointmentSessionORM{

@@ -199,26 +199,22 @@ func (service *AppointmentServiceImpl) filterAppointments(
 
 	for _, distApp := range districtAppointments {
 		for _, center := range distApp.Centers {
+
+			// find/insert center info
+			centerOrm, err := service.sqlRepo.FindCenterWithCenterId(ctx, center)
+			if err != nil && errors.As(err, &noRecordExistErr) {
+				centerOrm = service.sqlRepo.InsertCenterInfo(ctx, center)
+			}
+
 			for _, sess := range center.Sessions {
 
 				_, err := service.sqlRepo.FindSessionWithSessionId(ctx, &sess)
 				if err != nil && errors.As(err, &noRecordExistErr) {
 
-					// find/insert center info
-					centerOrm, err := service.sqlRepo.FindCenterWithCenterId(ctx, center)
-					if err != nil && errors.As(err, &noRecordExistErr) {
-						centerOrm = service.sqlRepo.InsertCenterInfo(ctx, center)
-					}
-
-					// find/insert vaccine info
-					vaccinOrm, err := service.sqlRepo.FindVaccineByName(ctx, sess.Vaccine)
-					if err != nil && errors.As(err, &noRecordExistErr) {
-						vaccinOrm = service.sqlRepo.InsertVaccine(ctx, sess.Vaccine)
-					}
-
 					// insert session info
-					sessionOrm := service.sqlRepo.InsertAppointmentSession(ctx, &sess, centerOrm.Id, vaccinOrm.Id)
+					sessionOrm := service.sqlRepo.InsertAppointmentSession(ctx, &sess, centerOrm.Id)
 
+					// append result
 					appSessArr = append(appSessArr, *sessionOrm)
 				}
 			}

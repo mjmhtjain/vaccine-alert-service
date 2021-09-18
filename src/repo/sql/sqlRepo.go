@@ -20,7 +20,7 @@ type SqlRepo interface {
 	InsertVaccine(ctx context.Context, vaccineName string) *model.VaccineORM
 
 	FindSessionWithSessionId(ctx context.Context, sess *model.Session) (*model.AppointmentSessionORM, error)
-	InsertAppointmentSession(ctx context.Context, appSess *model.Session, centerId int, vaccineId string) *model.AppointmentSessionORM
+	InsertAppointmentSession(ctx context.Context, appSess *model.Session, centerId int) *model.AppointmentSessionORM
 }
 
 type SqlRepoImpl struct {
@@ -121,7 +121,6 @@ func (impl *SqlRepoImpl) InsertAppointmentSession(
 	ctx context.Context,
 	appSess *model.Session,
 	centerId int,
-	vaccineId string,
 ) *model.AppointmentSessionORM {
 	db := impl.dbConn.WithContext(ctx)
 	appointment := model.AppointmentSessionORM{
@@ -130,7 +129,7 @@ func (impl *SqlRepoImpl) InsertAppointmentSession(
 		Date:                   appSess.Date,
 		AvailableCapacity:      appSess.AvailableCapacity,
 		MinAgeLimit:            appSess.MinAgeLimit,
-		VaccineIDKF:            vaccineId,
+		Vaccine:                appSess.Vaccine,
 		AvailableCapacityDose1: appSess.AvailableCapacityDose1,
 		AvailableCapacityDose2: appSess.AvailableCapacityDose2,
 	}

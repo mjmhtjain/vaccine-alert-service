@@ -6,7 +6,7 @@ type AppointmentSessionORM struct {
 	Date                   string `gorm:"column:date"`
 	AvailableCapacity      int    `gorm:"column:available_capacity"`
 	MinAgeLimit            int    `gorm:"column:min_age_limit"`
-	VaccineIDKF            string `gorm:"column:vaccine_idfk"`
+	Vaccine                string `gorm:"column:vaccine"`
 	AvailableCapacityDose1 int    `gorm:"column:available_capacity_dose1"`
 	AvailableCapacityDose2 int    `gorm:"column:available_capacity_dose2"`
 }
